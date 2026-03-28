@@ -45,8 +45,15 @@
               Vinkel på bock
               <span class="unit">(° från horisontal)</span>
             </label>
-            <input id="angle2" type="number" min="0" max="89.9" step="0.1" value="45" />
-          </div>
+<input
+  id="angle2"
+  type="text"
+  inputmode="numeric"
+  pattern="[0-9]*"
+  enterkeyhint="done"
+  autocomplete="off"
+  value="45"
+/>          </div>
 
           <button class="calc" id="calcHeightAngle">
             Beräkna <span aria-hidden="true">➜</span>
@@ -141,7 +148,15 @@
               <div class="step-inline">
                 <div class="step-field">
                   <label for="stepMm">Mått per steg <span class="unit">(mm)</span></label>
-                  <input id="stepMm" type="number" min="0" step="0.1" value="100" />
+                  <input
+  id="stepMm"
+  type="text"
+  inputmode="numeric"
+  pattern="[0-9]*"
+  enterkeyhint="done"
+  autocomplete="off"
+  value="100"
+/>
                 </div>
 
                 <div class="toggle-group">
@@ -175,21 +190,42 @@
             <div class="offset-grid">
               <div class="field mb0">
                 <label for="offsetAngle">Vinkel <span class="unit">(°)</span></label>
-                <input id="offsetAngle" type="number" step="0.1" value="45" />
-                <div class="note">För E/N/S/W: + = upp, − = ner.</div>
+<input
+  id="offsetAngle"
+  type="text"
+  inputmode="numeric"
+  pattern="[0-9]*"
+  enterkeyhint="done"
+  autocomplete="off"
+  value="45"
+/>                <div class="note">För E/N/S/W: + = upp, − = ner.</div>
               </div>
 
               <div class="field mb0">
                 <label for="offsetMm">Offset <span class="unit">(mm)</span></label>
-                <input id="offsetMm" type="number" min="0" step="0.1" value="100" />
-                <div class="note">Katet (förflyttning). Segment blir längre.</div>
+<input
+  id="offsetMm"
+  type="text"
+  inputmode="numeric"
+  pattern="[0-9]*"
+  enterkeyhint="done"
+  autocomplete="off"
+  value="100"
+/>                <div class="note">Katet (förflyttning). Segment blir längre.</div>
               </div>
             </div>
 
             <div class="field" style="margin-top:8px;">
               <label for="offsetCcMm">C.C mått <span class="unit">(mm)</span></label>
-              <input id="offsetCcMm" type="number" min="0" step="0.1" placeholder="Valfritt" />
-              <div class="note">
+<input
+  id="offsetCcMm"
+  type="text"
+  inputmode="numeric"
+  pattern="[0-9]*"
+  enterkeyhint="done"
+  autocomplete="off"
+  placeholder="Valfritt"
+/>              <div class="note">
                 Om du anger detta justeras föregående raka steg så att C.C-måttet stämmer.
               </div>
             </div>
@@ -203,8 +239,15 @@
             <div class="offset-grid">
               <div class="field mb0">
                 <label for="bendRadiusMm">Böjradie <span class="unit">(mm)</span></label>
-                <input id="bendRadiusMm" type="number" min="0" step="0.1" value="56" />
-                <div class="note">Används på alla böjar där radie får plats.</div>
+<input
+  id="bendRadiusMm"
+  type="text"
+  inputmode="numeric"
+  pattern="[0-9]*"
+  enterkeyhint="done"
+  autocomplete="off"
+  value="56"
+/>                <div class="note">Används på alla böjar där radie får plats.</div>
               </div>
 
               <div class="field mb0">

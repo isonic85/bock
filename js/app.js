@@ -749,6 +749,85 @@
     ctxIso.restore();
   }
 
+function drawEmptyIsoGrid(ctx, toCanvas, extent = 2000, step = 50) {
+  if (!ctx) return;
+
+  const majorEvery = 5;
+  const x0 = -extent;
+  const x1 = extent;
+  const y0 = -extent;
+  const y1 = extent;
+
+  const drawLine = (a3, b3, isMajor, alphaMinor, alphaMajor) => {
+    const a = toCanvas(projectIso(a3));
+    const b = toCanvas(projectIso(b3));
+
+    ctx.strokeStyle = `rgba(147,197,253,${isMajor ? alphaMajor : alphaMinor})`;
+    ctx.lineWidth = isMajor ? 1.4 : 1.0;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  };
+
+  // X-linjer
+  for (let i = Math.floor(x0 / step); i <= Math.ceil(x1 / step); i++) {
+    const x = i * step;
+    const isMajor = i % majorEvery === 0;
+    drawLine(
+      { x, y: y0, z: 0 },
+      { x, y: y1, z: 0 },
+      isMajor,
+      0.08,
+      0.16
+    );
+  }
+
+  // Y-linjer
+  for (let i = Math.floor(y0 / step); i <= Math.ceil(y1 / step); i++) {
+    const y = i * step;
+    const isMajor = i % majorEvery === 0;
+    drawLine(
+      { x: x0, y, z: 0 },
+      { x: x1, y, z: 0 },
+      isMajor,
+      0.08,
+      0.16
+    );
+  }
+
+  // Diagonala ISO-linjer (x + y = konstant)
+  const c0 = x0 + y0;
+  const c1 = x1 + y1;
+
+  for (let i = Math.floor(c0 / step); i <= Math.ceil(c1 / step); i++) {
+    const c = i * step;
+    const isMajor = i % majorEvery === 0;
+
+    let xa = x0;
+    let ya = c - xa;
+    let xb = x1;
+    let yb = c - xb;
+
+    if (ya < y0) { ya = y0; xa = c - ya; }
+    if (ya > y1) { ya = y1; xa = c - ya; }
+    if (yb < y0) { yb = y0; xb = c - yb; }
+    if (yb > y1) { yb = y1; xb = c - yb; }
+
+    if (xa < x0 - 1e-6 || xa > x1 + 1e-6 || xb < x0 - 1e-6 || xb > x1 + 1e-6) {
+      continue;
+    }
+
+    drawLine(
+      { x: xa, y: ya, z: 0 },
+      { x: xb, y: yb, z: 0 },
+      isMajor,
+      0.06,
+      0.14
+    );
+  }
+}
+
   function drawIsoGrid(ctx, pts3d, toCanvas, w, h) {
     if (!ctx || !pts3d?.length) return;
 
@@ -1301,15 +1380,31 @@
   function drawIso() {
     if (!ctxIso) return;
 
-    if (!state.isoSteps.length) {
-      show(dom.errorIso, false);
-      dom.isoCountOut.textContent = dom.isoLenOut.textContent = dom.bendCountOut.textContent = "–";
-      const { w, h } = ensureCanvasDpr();
-      ctxIso.clearRect(0, 0, w, h);
-      drawMiniAxes();
-      renderZeroBendList(null);
-      return;
-    }
+if (!state.isoSteps.length) {
+  show(dom.errorIso, false);
+  dom.isoCountOut.textContent = dom.isoLenOut.textContent = dom.bendCountOut.textContent = "–";
+
+  const { w, h } = ensureCanvasDpr();
+  ctxIso.clearRect(0, 0, w, h);
+
+  const toCanvas = (p) => {
+    const k = state.view.baseScale * state.view.zoom;
+    return {
+      x: state.view.baseCx + p.x * k + state.view.panX,
+      y: state.view.baseCy + p.y * k + state.view.panY
+    };
+  };
+
+  // Centrera tom ISO-grid snyggt
+  state.view.baseScale = Math.min(w, h) / 900;
+  state.view.baseCx = w / 2;
+  state.view.baseCy = h / 2;
+
+  drawEmptyIsoGrid(ctxIso, toCanvas, 2000, 50);
+  drawMiniAxes();
+  renderZeroBendList(null);
+  return;
+}
 
     const radiusConfig = validateRadiusInput();
     if (dom.radiusEnabled.checked && !radiusConfig) {
@@ -1892,57 +1987,68 @@
     }
   }
 
-  function resetAppToNewDrawing() {
-    state.drawingId = null;
-    state.drawingName = "";
-    state.isDirty = false;
+function resetAppToNewDrawing() {
+  const activeMode =
+    dom.modeButtons.find((btn) => btn.classList.contains("active"))?.dataset.mode || "heightAngle";
 
-    dom.height2Input.value = "75";
-    dom.angle2Input.value = "45";
+  state.drawingId = null;
+  state.drawingName = "";
+  state.isDirty = false;
 
-    dom.stepMmInput.value = "100";
-    dom.points3dInput.value = `E 1200
-N 400
-UP 300`;
+  dom.height2Input.value = "75";
+  dom.angle2Input.value = "45";
 
-    dom.offsetEnabled.checked = false;
-    dom.offsetAngleInput.value = "45";
-    dom.offsetMmInput.value = "100";
-    dom.offsetCcMmInput.value = "";
+  dom.stepMmInput.value = "100";
+  dom.points3dInput.value = "";
 
-    dom.dimsEnabled.checked = true;
-    dom.radiusEnabled.checked = false;
-    dom.bendRadiusMmInput.value = "56";
-    dom.zeroBendEnabled.checked = false;
+  dom.offsetEnabled.checked = false;
+  dom.offsetAngleInput.value = "45";
+  dom.offsetMmInput.value = "100";
+  dom.offsetCcMmInput.value = "";
 
-    state.view.pitch = DEFAULT_VIEW.pitch;
-    state.view.yaw = DEFAULT_VIEW.yaw;
-    state.view.zoom = 1;
-    state.view.panX = 0;
-    state.view.panY = 0;
+  dom.dimsEnabled.checked = true;
+  dom.radiusEnabled.checked = false;
+  dom.bendRadiusMmInput.value = "56";
+  dom.zeroBendEnabled.checked = false;
 
-    state.showDims = true;
-    state.showRadius = false;
-    state.showZeroBend = false;
+  state.view.pitch = DEFAULT_VIEW.pitch;
+  state.view.yaw = DEFAULT_VIEW.yaw;
+  state.view.zoom = 1;
+  state.view.panX = 0;
+  state.view.panY = 0;
 
-    show(dom.offsetPanel, false);
-    show(dom.radiusPanel, false);
-    show(dom.zeroBendPanel, false);
+  state.showDims = true;
+  state.showRadius = false;
+  state.showZeroBend = false;
 
-    calculateHeightAngle();
-    state.isoSteps = parseSteps(dom.points3dInput.value) || [];
-    renderStepsList();
-    fitView(false);
-    drawIso();
-    updateSaveStatusChip();
+  show(dom.offsetPanel, false);
+  show(dom.radiusPanel, false);
+  show(dom.zeroBendPanel, false);
+  show(dom.errorIso, false);
+  show(dom.errorOffset, false);
+  show(dom.errorRadius, false);
 
-    const firstTab = dom.modeButtons.find((btn) => btn.dataset.mode === "heightAngle");
-    if (firstTab) {
-      dom.modeButtons.forEach((b) => b.classList.remove("active"));
-      firstTab.classList.add("active");
-      showMode("heightAngle");
-    }
+  calculateHeightAngle();
+
+  state.isoSteps = [];
+  renderStepsList();
+
+  dom.isoCountOut.textContent = "–";
+  dom.isoLenOut.textContent = "–";
+  dom.bendCountOut.textContent = "–";
+
+  renderZeroBendList(null);
+  fitView(false);
+  drawIso();
+  updateSaveStatusChip();
+
+  const targetBtn = dom.modeButtons.find((btn) => btn.dataset.mode === activeMode);
+  if (targetBtn) {
+    dom.modeButtons.forEach((b) => b.classList.remove("active"));
+    targetBtn.classList.add("active");
+    showMode(activeMode);
   }
+}
 
   function openSimpleModal(modalEl, focusEl = null) {
     if (!modalEl) return;
@@ -2014,34 +2120,46 @@ UP 300`;
     });
   }
 
-  async function saveCurrentDrawing(forceNew = false) {
-    const nameDefault = forceNew ? state.drawingName : (state.drawingName || "Namnlös ritning");
+async function saveCurrentDrawing(forceNew = false) {
+  const payload = getAppSnapshot();
+
+  try {
+    // Snabb-spara: finns redan en ritning och användaren tryckte bara "Spara"
+    if (!forceNew && state.drawingId) {
+      const saved = await window.ArchiveStore.updateDrawing(state.drawingId, {
+        data: payload
+      });
+
+      state.drawingName = saved.name || state.drawingName || "Namnlös ritning";
+      markDirty(false);
+      return;
+    }
+
+    // Första sparningen eller "Spara som"
+    const nameDefault = state.drawingName || "Namnlös ritning";
     const chosenName = await askDrawingName(nameDefault);
     if (!chosenName) return;
 
-    const payload = getAppSnapshot();
-
-    try {
-      if (forceNew || !state.drawingId) {
-        const saved = await window.ArchiveStore.createDrawing({
-          name: chosenName,
-          data: payload
-        });
-        state.drawingId = saved.id;
-        state.drawingName = saved.name;
-      } else {
-        const saved = await window.ArchiveStore.updateDrawing(state.drawingId, {
-          name: chosenName,
-          data: payload
-        });
-        state.drawingName = saved.name;
-      }
-
-      markDirty(false);
-    } catch (err) {
-      alert("Kunde inte spara ritningen: " + (err?.message || err));
+    if (forceNew || !state.drawingId) {
+      const saved = await window.ArchiveStore.createDrawing({
+        name: chosenName,
+        data: payload
+      });
+      state.drawingId = saved.id;
+      state.drawingName = saved.name;
+    } else {
+      const saved = await window.ArchiveStore.updateDrawing(state.drawingId, {
+        name: chosenName,
+        data: payload
+      });
+      state.drawingName = saved.name;
     }
+
+    markDirty(false);
+  } catch (err) {
+    alert("Kunde inte spara ritningen: " + (err?.message || err));
   }
+}
 
   async function loadDrawingRecord(record) {
     if (!record?.data) return;
@@ -2192,13 +2310,68 @@ UP 300`;
       if (e.target === dom.archiveModal) closeSimpleModal(dom.archiveModal);
     });
   }
-  function initApp() {
-    initTabs();
-    initHeightAngle();
-    initIsoControls();
-    initCanvasInteractions();
-    initArchiveUi();
-    setupDirtyTracking();
+
+function bindNumericInputUx(input, { restoreOnEmpty = true } = {}) {
+  if (!input) return;
+
+  let clearedThisFocus = false;
+
+  const sanitize = () => {
+    const original = input.value ?? "";
+    const cleaned = String(original).replace(/[^\d]/g, "");
+    if (cleaned !== original) {
+      input.value = cleaned;
+    }
+  };
+
+  on(input, "focus", () => {
+    input.dataset.prevValue = input.value ?? "";
+    input.value = "";
+    clearedThisFocus = true;
+  });
+
+  on(input, "pointerdown", () => {
+    clearedThisFocus = false;
+  });
+
+  on(input, "input", sanitize);
+
+  on(input, "blur", () => {
+    sanitize();
+
+    if (!input.value.trim() && restoreOnEmpty) {
+      input.value = input.dataset.prevValue ?? "";
+    }
+
+    clearedThisFocus = false;
+  });
+
+  on(input, "keydown", (e) => {
+    if (e.key === "Enter") {
+      input.blur();
+    }
+  });
+}
+
+function initMobileNumberInputs() {
+  [
+    dom.stepMmInput,
+    dom.offsetAngleInput,
+    dom.offsetMmInput,
+    dom.offsetCcMmInput,
+    dom.bendRadiusMmInput,
+    dom.angle2Input
+  ].forEach((input) => bindNumericInputUx(input));
+}
+
+function initApp() {
+  initTabs();
+  initHeightAngle();
+  initIsoControls();
+  initCanvasInteractions();
+  initArchiveUi();
+  initMobileNumberInputs();
+  setupDirtyTracking();
 
     const exportIsoPdf = window.PdfModule.createExportIsoPdf({
       state,
