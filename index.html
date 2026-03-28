@@ -13,16 +13,18 @@
 <body>
   <main class="app">
     <h1>Rörbockning med Farbror Niklas</h1>
-<div class="app-actions">
-  <div class="app-actions-left">
-    <button type="button" class="mini-btn" id="newDrawingBtn">Ny</button>
-    <button type="button" class="mini-btn" id="saveDrawingBtn">Spara</button>
-    <button type="button" class="mini-btn" id="saveAsDrawingBtn">Spara som</button>
-    <button type="button" class="mini-btn" id="archiveBtn">Arkiv</button>
-  </div>
 
-  <div class="save-status-chip" id="saveStatusChip">Ej sparad</div>
-</div>
+    <div class="app-actions">
+      <div class="app-actions-left">
+        <button type="button" class="mini-btn" id="newDrawingBtn">Ny</button>
+        <button type="button" class="mini-btn" id="saveDrawingBtn">Spara</button>
+        <button type="button" class="mini-btn" id="saveAsDrawingBtn">Spara som</button>
+        <button type="button" class="mini-btn" id="archiveBtn">Arkiv</button>
+      </div>
+
+      <div class="save-status-chip" id="saveStatusChip">Ej sparad</div>
+    </div>
+
     <div class="layout" id="layoutRoot">
       <section>
         <div class="mode-tabs">
@@ -37,28 +39,30 @@
               Höjd från referenslinje (offset)
               <span class="unit">(mm)</span>
             </label>
-<input
-  id="height2"
-  type="text"
-  inputmode="decimal"
-  enterkeyhint="done"
-  autocomplete="off"
-  value="45"
-/>         </div>
+            <input
+              id="height2"
+              type="text"
+              inputmode="decimal"
+              enterkeyhint="done"
+              autocomplete="off"
+              value="45"
+            />
+          </div>
 
           <div class="field">
             <label for="angle2">
               Vinkel på bock
               <span class="unit">(° från horisontal)</span>
             </label>
-<input
-  id="angle2"
-  type="text"
-  inputmode="decimal"
-  enterkeyhint="done"
-  autocomplete="off"
-  value="45"
-/>        </div>
+            <input
+              id="angle2"
+              type="text"
+              inputmode="decimal"
+              enterkeyhint="done"
+              autocomplete="off"
+              value="45"
+            />
+          </div>
 
           <button class="calc" id="calcHeightAngle">
             Beräkna <span aria-hidden="true">➜</span>
@@ -135,7 +139,31 @@
 
             <canvas id="isoCanvas" width="600" height="360" aria-label="3D ISO canvas"></canvas>
 
-            <div class="view-actions">
+            <div class="iso-mobile-status">
+              <div class="iso-status-chip">
+                <span class="k">Punkter</span>
+                <span class="v" id="isoCount">–</span>
+              </div>
+              <div class="iso-status-chip">
+                <span class="k">Längd</span>
+                <span class="v" id="isoLen">–</span>
+              </div>
+              <div class="iso-status-chip">
+                <span class="k">Böjar</span>
+                <span class="v" id="bendCountOut">–</span>
+              </div>
+            </div>
+
+            <div class="iso-btns iso-btns-primary">
+              <button class="iso-btn" data-dir="E">E ►</button>
+              <button class="iso-btn" data-dir="N">N ▲</button>
+              <button class="iso-btn" data-dir="UP">UP ⬆</button>
+              <button class="iso-btn" data-dir="W">W ◄</button>
+              <button class="iso-btn" data-dir="S">S ▼</button>
+              <button class="iso-btn" data-dir="DOWN">DOWN ⬇</button>
+            </div>
+
+            <div class="view-actions iso-main-actions">
               <button class="mini-btn" id="rotateViewBtn" title="Vrider modellen 90° runt vertikal axel">Rotera 90°</button>
               <button class="mini-btn" id="resetViewBtn" title="Återställ vy">Återställ</button>
               <button class="mini-btn" id="undoStepBtn" title="Ta bort sista steget">Ångra steg</button>
@@ -148,197 +176,189 @@
             </div>
           </div>
 
-          <div class="iso-top-controls">
-            <div class="step-and-toggles">
-              <div class="step-inline">
-                <div class="step-field">
-                  <label for="stepMm">Mått per steg <span class="unit">(mm)</span></label>
-<input
-  id="stepMm"
-  type="text"
-  inputmode="decimal"
-  enterkeyhint="done"
-  autocomplete="off"
-  value="100"
-/>
-                </div>
+          <div class="iso-quickbar">
+            <div class="step-field compact-step-field">
+              <label for="stepMm">Mått per steg <span class="unit">(mm)</span></label>
+              <input
+                id="stepMm"
+                type="text"
+                inputmode="decimal"
+                enterkeyhint="done"
+                autocomplete="off"
+                value="100"
+              />
+            </div>
 
-                <div class="toggle-group">
-                  <label class="offset-toggle m0" for="offsetEnabled">
-                    <input id="offsetEnabled" type="checkbox" />
-                    <span>Offset</span>
-                  </label>
+            <div class="toggle-group iso-toggle-grid">
+              <label class="offset-toggle m0" for="offsetEnabled">
+                <input id="offsetEnabled" type="checkbox" />
+                <span>Offset</span>
+              </label>
 
-                  <label class="offset-toggle m0" for="dimsEnabled" title="Visa/dölj mått på canvas">
-                    <input id="dimsEnabled" type="checkbox" checked />
-                    <span>Mått</span>
-                  </label>
+              <label class="offset-toggle m0" for="dimsEnabled" title="Visa/dölj mått på canvas">
+                <input id="dimsEnabled" type="checkbox" checked />
+                <span>Mått</span>
+              </label>
 
-                  <label class="offset-toggle m0" for="radiusEnabled" title="Visa böjar med radie">
-                    <input id="radiusEnabled" type="checkbox" />
-                    <span>Radie</span>
-                  </label>
+              <label class="offset-toggle m0" for="radiusEnabled" title="Visa böjar med radie">
+                <input id="radiusEnabled" type="checkbox" />
+                <span>Radie</span>
+              </label>
 
-                  <label class="offset-toggle m0" for="zeroBendEnabled" title="Visa bocklista för 0-punkt bockning">
-                    <input id="zeroBendEnabled" type="checkbox" />
-                    <span>0-punkt</span>
-                  </label>
-                </div>
-              </div>
-
-              <div class="note">Tryck en riktning för att lägga till ett rörsteg.</div>
+              <label class="offset-toggle m0" for="zeroBendEnabled" title="Visa bocklista för 0-punkt bockning">
+                <input id="zeroBendEnabled" type="checkbox" />
+                <span>0-punkt</span>
+              </label>
             </div>
           </div>
 
-          <div id="offsetPanel" class="hidden">
-            <div class="offset-grid">
-              <div class="field mb0">
-                <label for="offsetAngle">Vinkel <span class="unit">(°)</span></label>
-<input
-  id="offsetAngle"
-  type="text"
-  inputmode="decimal"
-  enterkeyhint="done"
-  autocomplete="off"
-  value="45"
-/>               <div class="note">För E/N/S/W: + = upp, − = ner.</div>
-              </div>
+          <details class="iso-section" id="offsetDetails">
+            <summary>Offset-inställningar</summary>
+            <div class="iso-section-body">
+              <div id="offsetPanel" class="hidden">
+                <div class="offset-grid">
+                  <div class="field mb0">
+                    <label for="offsetAngle">Vinkel <span class="unit">(°)</span></label>
+                    <input
+                      id="offsetAngle"
+                      type="text"
+                      inputmode="decimal"
+                      enterkeyhint="done"
+                      autocomplete="off"
+                      value="45"
+                    />
+                    <div class="note">För E/N/S/W: + = upp, − = ner.</div>
+                  </div>
 
-              <div class="field mb0">
-                <label for="offsetMm">Offset <span class="unit">(mm)</span></label>
-<input
-  id="offsetMm"
-  type="text"
-  inputmode="decimal"
-  enterkeyhint="done"
-  autocomplete="off"
-  value="100"
-/>               <div class="note">Katet (förflyttning). Segment blir längre.</div>
-              </div>
-            </div>
+                  <div class="field mb0">
+                    <label for="offsetMm">Offset <span class="unit">(mm)</span></label>
+                    <input
+                      id="offsetMm"
+                      type="text"
+                      inputmode="decimal"
+                      enterkeyhint="done"
+                      autocomplete="off"
+                      value="100"
+                    />
+                    <div class="note">Katet (förflyttning). Segment blir längre.</div>
+                  </div>
+                </div>
 
-            <div class="field" style="margin-top:8px;">
-              <label for="offsetCcMm">C.C mått <span class="unit">(mm)</span></label>
-<input
-  id="offsetCcMm"
-  type="text"
-  inputmode="decimal"
-  enterkeyhint="done"
-  autocomplete="off"
-  placeholder="Valfritt"
-/>             <div class="note">
-                Om du anger detta justeras föregående raka steg så att C.C-måttet stämmer.
-              </div>
-            </div>
+                <div class="field" style="margin-top:8px;">
+                  <label for="offsetCcMm">C.C mått <span class="unit">(mm)</span></label>
+                  <input
+                    id="offsetCcMm"
+                    type="text"
+                    inputmode="decimal"
+                    enterkeyhint="done"
+                    autocomplete="off"
+                    placeholder="Valfritt"
+                  />
+                  <div class="note">
+                    Om du anger detta justeras föregående raka steg så att C.C-måttet stämmer.
+                  </div>
+                </div>
 
-            <div id="errorOffset" class="error">
-              Vinkel får inte vara 0° eller ±90°. Offset måste vara &gt; 0.
-            </div>
-          </div>
-
-          <div id="radiusPanel" class="hidden">
-            <div class="offset-grid">
-              <div class="field mb0">
-                <label for="bendRadiusMm">Böjradie <span class="unit">(mm)</span></label>
-<input
-  id="bendRadiusMm"
-  type="text"
-  inputmode="decimal"
-  enterkeyhint="done"
-  autocomplete="off"
-  value="56"
-/>              <div class="note">Används på alla böjar där radie får plats.</div>
-              </div>
-
-              <div class="field mb0">
-                <label for="radiusModeInfo">Information</label>
-                <input id="radiusModeInfo" type="number" value="1" disabled hidden />
-                <div class="note">
-                  Mått visas till tangentpunkter och böjlängd visas på varje böj.
+                <div id="errorOffset" class="error">
+                  Vinkel får inte vara 0° eller ±90°. Offset måste vara &gt; 0.
                 </div>
               </div>
             </div>
+          </details>
 
-            <div id="errorRadius" class="error">Radien måste vara större än 0 mm.</div>
-          </div>
+          <details class="iso-section" id="radiusDetails">
+            <summary>Radie och 0-punkt</summary>
+            <div class="iso-section-body">
+              <div id="radiusPanel" class="hidden">
+                <div class="offset-grid">
+                  <div class="field mb0">
+                    <label for="bendRadiusMm">Böjradie <span class="unit">(mm)</span></label>
+                    <input
+                      id="bendRadiusMm"
+                      type="text"
+                      inputmode="decimal"
+                      enterkeyhint="done"
+                      autocomplete="off"
+                      value="56"
+                    />
+                    <div class="note">Används på alla böjar där radie får plats.</div>
+                  </div>
 
-          <div class="iso-btns">
-            <button class="iso-btn" data-dir="E">E ►</button>
-            <button class="iso-btn" data-dir="N">N ▲</button>
-            <button class="iso-btn" data-dir="UP">UP ⬆</button>
-            <button class="iso-btn" data-dir="W">W ◄</button>
-            <button class="iso-btn" data-dir="S">S ▼</button>
-            <button class="iso-btn" data-dir="DOWN">DOWN ⬇</button>
-          </div>
+                  <div class="field mb0">
+                    <label for="radiusModeInfo">Information</label>
+                    <input id="radiusModeInfo" type="number" value="1" disabled hidden />
+                    <div class="note">
+                      Mått visas till tangentpunkter och böjlängd visas på varje böj.
+                    </div>
+                  </div>
+                </div>
 
-          <div id="zeroBendPanel" class="iso-steps hidden">
-            <div class="iso-steps-header">
-              <strong>Bocklista</strong>
-              <span class="iso-chip" id="zeroBendChip">0 bockar</span>
+                <div id="errorRadius" class="error">Radien måste vara större än 0 mm.</div>
+              </div>
+
+              <div id="zeroBendPanel" class="iso-steps hidden iso-steps-compact">
+                <div class="iso-steps-header">
+                  <strong>Bocklista</strong>
+                  <span class="iso-chip" id="zeroBendChip">0 bockar</span>
+                </div>
+
+                <div class="note m0">
+                  Delmått = från föregående tangentstart. Från start = kumulativt mått från rörets början.
+                </div>
+
+                <div id="zeroBendEmpty" class="note">
+                  Aktivera 0-punkt för att visa bocklistan.
+                </div>
+
+                <div id="zeroBendWarn" class="zero-warn"></div>
+
+                <div id="zeroBendTableWrap" class="zero-table-wrap hidden">
+                  <table class="zero-table">
+                    <thead>
+                      <tr>
+                        <th>Bock</th>
+                        <th>Typ</th>
+                        <th>Vinkel</th>
+                        <th>Delmått</th>
+                        <th>Från start</th>
+                      </tr>
+                    </thead>
+                    <tbody id="zeroBendBody"></tbody>
+                  </table>
+                </div>
+
+                <div id="zeroBendError" class="error"></div>
+              </div>
             </div>
+          </details>
 
-            <div class="note m0">
-              Delmått = från föregående tangentstart. Från start = kumulativt mått från rörets början.
+          <details class="iso-section" id="manualStepsDetails">
+            <summary>Manuell steg-lista</summary>
+            <div class="iso-section-body">
+              <div class="field m0">
+                <label for="points3d">Steg-lista (du kan även skriva här manuellt)</label>
+                <textarea id="points3d" class="iso-input" rows="6"></textarea>
+              </div>
+
+              <div id="errorIso" class="error">
+                Kunde inte läsa stegen. Ex: <strong>E 120</strong> eller
+                <strong>O E 45 100</strong>.
+              </div>
             </div>
+          </details>
 
-            <div id="zeroBendEmpty" class="note">
-              Aktivera 0-punkt för att visa bocklistan.
+          <details class="iso-section" id="stepsListDetails">
+            <summary>Stegöversikt</summary>
+            <div class="iso-section-body">
+              <div class="iso-steps m0">
+                <div class="iso-steps-header">
+                  <strong>Steg</strong>
+                  <span class="iso-chip" id="stepCountChip">0 steg</span>
+                </div>
+                <ol class="iso-list" id="stepsList"></ol>
+              </div>
             </div>
-
-            <div id="zeroBendWarn" class="zero-warn"></div>
-
-            <div id="zeroBendTableWrap" class="zero-table-wrap hidden">
-              <table class="zero-table">
-                <thead>
-                  <tr>
-                    <th>Bock</th>
-                    <th>Typ</th>
-                    <th>Vinkel</th>
-                    <th>Delmått</th>
-                    <th>Från start</th>
-                  </tr>
-                </thead>
-                <tbody id="zeroBendBody"></tbody>
-              </table>
-            </div>
-
-            <div id="zeroBendError" class="error"></div>
-          </div>
-
-          <div class="field">
-            <label for="points3d">Steg-lista (du kan även skriva här manuellt)</label>
-            <textarea id="points3d" class="iso-input" rows="7">E 1200
-N 400
-UP 300</textarea>
-          </div>
-
-          <div class="iso-steps">
-            <div class="iso-steps-header">
-              <strong>Steg</strong>
-              <span class="iso-chip" id="stepCountChip">0 steg</span>
-            </div>
-            <ol class="iso-list" id="stepsList"></ol>
-          </div>
-
-          <div id="errorIso" class="error">
-            Kunde inte läsa stegen. Ex: <strong>E 120</strong> eller
-            <strong>O E 45 100</strong>.
-          </div>
-
-          <div class="results">
-            <div class="results-row">
-              <span class="label">Antal punkter:</span>
-              <span class="value" id="isoCount">–</span>
-            </div>
-            <div class="results-row">
-              <span class="label">Total längd (3D):</span>
-              <span class="value" id="isoLen">–</span>
-            </div>
-            <div class="results-row">
-              <span class="label">Böjar med radie:</span>
-              <span class="value" id="bendCountOut">–</span>
-            </div>
-          </div>
+          </details>
         </div>
       </section>
 
@@ -393,59 +413,61 @@ UP 300</textarea>
       </div>
     </div>
   </div>
-<div id="saveModal" class="modal-backdrop hidden" aria-hidden="true">
-  <div
-    class="modal-card"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="saveModalTitle"
-    aria-describedby="saveModalText"
-  >
-    <div class="modal-header">
-      <h3 id="saveModalTitle">Spara ritning</h3>
-    </div>
 
-    <div class="modal-body">
-      <p id="saveModalText" style="margin-bottom:10px;">Ange ett namn på ritningen.</p>
-      <input
-        id="saveNameInput"
-        class="input-text"
-        type="text"
-        maxlength="80"
-        placeholder="T.ex. Korridor plan 2"
-        autocomplete="off"
-      />
-    </div>
-
-    <div class="modal-actions">
-      <button type="button" class="modal-btn secondary" id="saveCancelBtn">Avbryt</button>
-      <button type="button" class="modal-btn danger" id="saveConfirmBtn">Spara</button>
-    </div>
-  </div>
-</div>
-
-<div id="archiveModal" class="modal-backdrop hidden" aria-hidden="true">
-  <div
-    class="modal-card archive-modal-card"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="archiveModalTitle"
-  >
-    <div class="modal-header archive-modal-header">
-      <div>
-        <h3 id="archiveModalTitle">Ritningsarkiv</h3>
-        <div class="archive-count" id="archiveCount">0 ritningar</div>
+  <div id="saveModal" class="modal-backdrop hidden" aria-hidden="true">
+    <div
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="saveModalTitle"
+      aria-describedby="saveModalText"
+    >
+      <div class="modal-header">
+        <h3 id="saveModalTitle">Spara ritning</h3>
       </div>
-      <button type="button" class="modal-btn secondary archive-close-btn" id="archiveCloseBtn">Stäng</button>
-    </div>
 
-    <div class="archive-list" id="archiveList"></div>
+      <div class="modal-body">
+        <p id="saveModalText" style="margin-bottom:10px;">Ange ett namn på ritningen.</p>
+        <input
+          id="saveNameInput"
+          class="input-text"
+          type="text"
+          maxlength="80"
+          placeholder="T.ex. Korridor plan 2"
+          autocomplete="off"
+        />
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="modal-btn secondary" id="saveCancelBtn">Avbryt</button>
+        <button type="button" class="modal-btn danger" id="saveConfirmBtn">Spara</button>
+      </div>
+    </div>
   </div>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="js/utils.js" defer></script>
-<script src="js/archive.js" defer></script>
-<script src="js/pdf.js" defer></script>
-<script src="js/app.js" defer></script>
+
+  <div id="archiveModal" class="modal-backdrop hidden" aria-hidden="true">
+    <div
+      class="modal-card archive-modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="archiveModalTitle"
+    >
+      <div class="modal-header archive-modal-header">
+        <div>
+          <h3 id="archiveModalTitle">Ritningsarkiv</h3>
+          <div class="archive-count" id="archiveCount">0 ritningar</div>
+        </div>
+        <button type="button" class="modal-btn secondary archive-close-btn" id="archiveCloseBtn">Stäng</button>
+      </div>
+
+      <div class="archive-list" id="archiveList"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/archive.js" defer></script>
+  <script src="js/pdf.js" defer></script>
+  <script src="js/app.js" defer></script>
 </body>
 </html>

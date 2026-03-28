@@ -27,6 +27,11 @@
 
   const dom = {
 
+    offsetDetails: byId("offsetDetails"),
+    radiusDetails: byId("radiusDetails"),
+    manualStepsDetails: byId("manualStepsDetails"),
+    stepsListDetails: byId("stepsListDetails"),
+
     newDrawingBtn: byId("newDrawingBtn"),
     saveDrawingBtn: byId("saveDrawingBtn"),
     saveAsDrawingBtn: byId("saveAsDrawingBtn"),
@@ -183,6 +188,7 @@
       syncStepsFromTextarea();
       fitView(false);
       drawIso();
+      syncIsoMobileSections();
     }
   }
 
@@ -509,6 +515,7 @@
         : `${index + 1}. OFFSET ${step.dir} v:${step.ang}° off:${step.off}mm → L:${step.mm.toFixed(1)}mm${step.ccWanted ? ` • CC:${step.ccWanted}mm` : ""}`;
       dom.stepsListEl.appendChild(li);
     });
+        syncIsoMobileSections();
   }
 
   function validateOffsetInputs() {
@@ -1623,6 +1630,7 @@ if (!state.isoSteps.length) {
     on(dom.offsetEnabled, "change", () => {
       show(dom.offsetPanel, dom.offsetEnabled.checked);
       show(dom.errorOffset, false);
+      syncIsoMobileSections();
     });
 
     on(dom.dimsEnabled, "change", () => {
@@ -1630,18 +1638,20 @@ if (!state.isoSteps.length) {
       drawIso();
     });
 
-    on(dom.radiusEnabled, "change", () => {
+     on(dom.radiusEnabled, "change", () => {
       state.showRadius = !!dom.radiusEnabled.checked;
       show(dom.radiusPanel, dom.radiusEnabled.checked);
       show(dom.errorRadius, false);
       fitView(false);
       drawIso();
+      syncIsoMobileSections();
     });
 
-    on(dom.zeroBendEnabled, "change", () => {
+      on(dom.zeroBendEnabled, "change", () => {
       state.showZeroBend = !!dom.zeroBendEnabled.checked;
       renderZeroBendList();
       drawIso();
+      syncIsoMobileSections();
     });
 
     on(dom.bendRadiusMmInput, "input", () => {
@@ -2364,6 +2374,28 @@ function initMobileNumberInputs() {
   ].forEach((input) => bindNumericInputUx(input));
 }
 
+function setDetailsOpen(el, open) {
+  if (!el) return;
+  el.open = !!open;
+}
+
+function syncIsoMobileSections() {
+  const isMobile = window.innerWidth <= 520;
+
+  if (!isMobile) {
+    setDetailsOpen(dom.offsetDetails, true);
+    setDetailsOpen(dom.radiusDetails, true);
+    setDetailsOpen(dom.manualStepsDetails, true);
+    setDetailsOpen(dom.stepsListDetails, true);
+    return;
+  }
+
+  setDetailsOpen(dom.offsetDetails, !!dom.offsetEnabled?.checked);
+  setDetailsOpen(dom.radiusDetails, !!dom.radiusEnabled?.checked || !!dom.zeroBendEnabled?.checked);
+  setDetailsOpen(dom.manualStepsDetails, false);
+  setDetailsOpen(dom.stepsListDetails, state.isoSteps.length > 0);
+}
+
 function initApp() {
   initTabs();
   initHeightAngle();
@@ -2397,6 +2429,7 @@ function initApp() {
     show(dom.zeroBendPanel, dom.zeroBendEnabled.checked);
     fitView(false);
     drawIso();
+        syncIsoMobileSections();
     updateSaveStatusChip();
   }
 
