@@ -34,7 +34,6 @@
 
     newDrawingBtn: byId("newDrawingBtn"),
     saveDrawingBtn: byId("saveDrawingBtn"),
-    saveAsDrawingBtn: byId("saveAsDrawingBtn"),
     archiveBtn: byId("archiveBtn"),
     saveStatusChip: byId("saveStatusChip"),
 
@@ -95,7 +94,6 @@
     bendCountOut: byId("bendCountOut"),
 
     isoCanvas: byId("isoCanvas"),
-    rotateViewBtn: byId("rotateViewBtn"),
     resetViewBtn: byId("resetViewBtn"),
     exportPdfBtn: byId("exportPdfBtn"),
 
@@ -1389,7 +1387,10 @@ function drawEmptyIsoGrid(ctx, toCanvas, extent = 2000, step = 50) {
 
 if (!state.isoSteps.length) {
   show(dom.errorIso, false);
-  dom.isoCountOut.textContent = dom.isoLenOut.textContent = dom.bendCountOut.textContent = "–";
+
+  if (dom.isoCountOut) dom.isoCountOut.textContent = "–";
+  if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
+  if (dom.bendCountOut) dom.bendCountOut.textContent = "–";
 
   const { w, h } = ensureCanvasDpr();
   ctxIso.clearRect(0, 0, w, h);
@@ -1402,7 +1403,6 @@ if (!state.isoSteps.length) {
     };
   };
 
-  // Centrera tom ISO-grid snyggt
   state.view.baseScale = Math.min(w, h) / 900;
   state.view.baseCx = w / 2;
   state.view.baseCy = h / 2;
@@ -1414,15 +1414,19 @@ if (!state.isoSteps.length) {
 }
 
     const radiusConfig = validateRadiusInput();
-    if (dom.radiusEnabled.checked && !radiusConfig) {
-      show(dom.errorRadius, true);
-      dom.isoCountOut.textContent = dom.isoLenOut.textContent = dom.bendCountOut.textContent = "–";
-      const { w, h } = ensureCanvasDpr();
-      ctxIso.clearRect(0, 0, w, h);
-      drawMiniAxes();
-      renderZeroBendList(null);
-      return;
-    }
+if (dom.radiusEnabled.checked && !radiusConfig) {
+  show(dom.errorRadius, true);
+
+  if (dom.isoCountOut) dom.isoCountOut.textContent = "–";
+  if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
+  if (dom.bendCountOut) dom.bendCountOut.textContent = "–";
+
+  const { w, h } = ensureCanvasDpr();
+  ctxIso.clearRect(0, 0, w, h);
+  drawMiniAxes();
+  renderZeroBendList(null);
+  return;
+}
 
     show(dom.errorRadius, false);
     show(dom.errorIso, false);
@@ -1431,9 +1435,9 @@ if (!state.isoSteps.length) {
     const geometry = buildRoundedGeometry(points3d);
     state.view.pivot = getModelPivot(geometry.points3d);
 
-    dom.isoCountOut.textContent = String(points3d.length);
-    dom.isoLenOut.textContent = fmtMm(geometry.totalLen, 1);
-    dom.bendCountOut.textContent = String(geometry.bendCount);
+    if (dom.isoCountOut) dom.isoCountOut.textContent = String(points3d.length);
+if (dom.isoLenOut) dom.isoLenOut.textContent = fmtMm(geometry.totalLen, 1);
+if (dom.bendCountOut) dom.bendCountOut.textContent = String(geometry.bendCount);
 
     renderZeroBendList(geometry);
 
@@ -1682,7 +1686,9 @@ if (!state.isoSteps.length) {
       state.isoSteps = [];
       renderStepsList();
       syncTextareaFromSteps();
-      dom.isoCountOut.textContent = dom.isoLenOut.textContent = dom.bendCountOut.textContent = "–";
+      if (dom.isoCountOut) dom.isoCountOut.textContent = "–";
+if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
+if (dom.bendCountOut) dom.bendCountOut.textContent = "–";
       show(dom.errorIso, false);
       show(dom.errorOffset, false);
       show(dom.errorRadius, false);
@@ -1698,7 +1704,9 @@ if (!state.isoSteps.length) {
         show(dom.errorIso, true);
         state.isoSteps = [];
         renderStepsList();
-        dom.isoCountOut.textContent = dom.isoLenOut.textContent = dom.bendCountOut.textContent = "–";
+if (dom.isoCountOut) dom.isoCountOut.textContent = "–";
+if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
+if (dom.bendCountOut) dom.bendCountOut.textContent = "–";
         renderZeroBendList(null);
         drawIso();
         return;
@@ -1711,11 +1719,6 @@ if (!state.isoSteps.length) {
       drawIso();
     });
 
-    on(dom.rotateViewBtn, "click", () => {
-      state.view.yaw -= Math.PI / 2;
-      fitView(true);
-      drawIso();
-    });
 
     on(dom.resetViewBtn, "click", resetView);
   }
@@ -2043,9 +2046,9 @@ function resetAppToNewDrawing() {
   state.isoSteps = [];
   renderStepsList();
 
-  dom.isoCountOut.textContent = "–";
-  dom.isoLenOut.textContent = "–";
-  dom.bendCountOut.textContent = "–";
+if (dom.isoCountOut) dom.isoCountOut.textContent = "–";
+if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
+if (dom.bendCountOut) dom.bendCountOut.textContent = "–";
 
   renderZeroBendList(null);
   fitView(false);
@@ -2302,8 +2305,7 @@ async function saveCurrentDrawing(forceNew = false) {
   }
 
   function initArchiveUi() {
-    on(dom.saveDrawingBtn, "click", () => saveCurrentDrawing(false));
-    on(dom.saveAsDrawingBtn, "click", () => saveCurrentDrawing(true));
+   on(dom.saveDrawingBtn, "click", () => saveCurrentDrawing(false));
 
     on(dom.newDrawingBtn, "click", async () => {
       if (state.isDirty) {

@@ -14,17 +14,6 @@
   <main class="app">
     <h1>Rörbockning med Farbror Niklas</h1>
 
-    <div class="app-actions">
-      <div class="app-actions-left">
-        <button type="button" class="mini-btn" id="newDrawingBtn">Ny</button>
-        <button type="button" class="mini-btn" id="saveDrawingBtn">Spara</button>
-        <button type="button" class="mini-btn" id="saveAsDrawingBtn">Spara som</button>
-        <button type="button" class="mini-btn" id="archiveBtn">Arkiv</button>
-      </div>
-
-      <div class="save-status-chip" id="saveStatusChip">Ej sparad</div>
-    </div>
-
     <div class="layout" id="layoutRoot">
       <section>
         <div class="mode-tabs">
@@ -133,26 +122,40 @@
 
         <div id="mode-iso3d" class="hidden">
           <div class="diagram-card iso-canvas-card">
-            <div class="diagram-header">
-              <span>3D ISO-visning</span>
-            </div>
+<div class="diagram-header iso-header">
+  <button type="button" class="mini-btn" id="newDrawingBtn">Ny ritning</button>
+
+  <div class="save-status-chip" id="saveStatusChip">Ej sparad</div>
+
+  <button type="button" class="mini-btn" id="saveDrawingBtn">Spara</button>
+</div>
 
             <canvas id="isoCanvas" width="600" height="360" aria-label="3D ISO canvas"></canvas>
 
-            <div class="iso-mobile-status">
-              <div class="iso-status-chip">
-                <span class="k">Punkter</span>
-                <span class="v" id="isoCount">–</span>
-              </div>
-              <div class="iso-status-chip">
-                <span class="k">Längd</span>
-                <span class="v" id="isoLen">–</span>
-              </div>
-              <div class="iso-status-chip">
-                <span class="k">Böjar</span>
-                <span class="v" id="bendCountOut">–</span>
-              </div>
-            </div>
+<div class="iso-mobile-status">
+  <div class="iso-status-chip iso-step-chip">
+    <span class="k">Steg (mm)</span>
+    <input
+      id="stepMm"
+      type="text"
+      inputmode="decimal"
+      enterkeyhint="done"
+      autocomplete="off"
+      value="100"
+    />
+  </div>
+
+  <div class="iso-status-chip">
+    <span class="k">Längd</span>
+    <span class="v" id="isoLen">–</span>
+  </div>
+
+<div class="iso-status-chip iso-undo-chip">
+  <button class="mini-btn iso-chip-btn" id="undoStepBtn" title="Ta bort sista steget">
+    Ångra
+  </button>
+</div>
+</div>
 
             <div class="iso-btns iso-btns-primary">
               <button class="iso-btn" data-dir="E">E ►</button>
@@ -163,31 +166,20 @@
               <button class="iso-btn" data-dir="DOWN">DOWN ⬇</button>
             </div>
 
-            <div class="view-actions iso-main-actions">
-              <button class="mini-btn" id="rotateViewBtn" title="Vrider modellen 90° runt vertikal axel">Rotera 90°</button>
-              <button class="mini-btn" id="resetViewBtn" title="Återställ vy">Återställ</button>
-              <button class="mini-btn" id="undoStepBtn" title="Ta bort sista steget">Ångra steg</button>
-              <button class="mini-btn" id="clearStepsBtn" title="Rensa alla steg">Rensa ISO</button>
-              <button class="mini-btn" id="exportPdfBtn" title="Exportera som PDF (A4 liggande)">Exportera PDF</button>
-            </div>
+     <div class="view-actions iso-main-actions">
+  <button type="button" class="mini-btn" id="archiveBtn">Arkiv</button>
 
-            <div class="note">
-              Dra för att rotera modellen. Nyp för zoom. 2 fingrar för up,ner,sidleds.
-            </div>
+  <button class="mini-btn" id="resetViewBtn" title="Återställ vy">Återställ</button>
+  <button class="mini-btn" id="clearStepsBtn" title="Rensa alla steg">Rensa ISO</button>
+  <button class="mini-btn" id="exportPdfBtn" title="Exportera som PDF (A4 liggande)">Exportera PDF</button>
+</div>
+
+
+
           </div>
 
           <div class="iso-quickbar">
-            <div class="step-field compact-step-field">
-              <label for="stepMm">Mått per steg <span class="unit">(mm)</span></label>
-              <input
-                id="stepMm"
-                type="text"
-                inputmode="decimal"
-                enterkeyhint="done"
-                autocomplete="off"
-                value="100"
-              />
-            </div>
+
 
             <div class="toggle-group iso-toggle-grid">
               <label class="offset-toggle m0" for="offsetEnabled">

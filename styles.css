@@ -137,7 +137,9 @@ label {
   color: var(--text-dim);
 }
 
-input[type="number"], textarea.iso-input {
+input[type="number"],
+input[type="text"],
+textarea.iso-input {
   width: 100%;
   padding: 8px 9px;
   border: 1px solid var(--border);
@@ -149,7 +151,9 @@ input[type="number"], textarea.iso-input {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-input[type="number"]:focus, textarea.iso-input:focus {
+input[type="number"]:focus,
+input[type="text"]:focus,
+textarea.iso-input:focus {
   border-color: var(--blue);
   box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.5);
 }
@@ -741,21 +745,6 @@ svg {
   }
 }
 
-.app-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin: 0 0 12px;
-}
-
-.app-actions-left {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 .save-status-chip {
   padding: 5px 10px;
   border: 1px solid var(--border);
@@ -959,7 +948,17 @@ svg {
 
 .iso-main-actions {
   margin-top: 10px;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}
+
+.iso-main-actions .mini-btn {
+  width: 100%;
+  padding: 6px 6px;
+  font-size: 0.74rem;
+  min-width: 0;
 }
 
 .iso-quickbar {
@@ -1041,16 +1040,19 @@ svg {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .iso-main-actions {
-    gap: 6px;
-  }
+.iso-main-actions {
+  gap: 6px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
 
-  .iso-main-actions .mini-btn {
-    flex: 1 1 calc(50% - 6px);
-  }
+.iso-main-actions .mini-btn {
+  width: 100%;
+  padding: 6px 4px;
+  font-size: 0.7rem;
+}
 
   .iso-btn {
-    min-height: 44px;
+    min-height: 1px;
   }
 
   .iso-toggle-grid {
@@ -1067,7 +1069,58 @@ svg {
     grid-template-columns: 1fr;
   }
 
-  .iso-main-actions .mini-btn {
-    flex-basis: 100%;
-  }
+.iso-main-actions .mini-btn {
+  width: 100%;
+  font-size: 0.68rem;
+  padding: 6px 3px;
+}
+}
+
+
+.iso-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.iso-header .save-status-chip {
+  justify-self: center;
+  width: auto;
+  text-align: center;
+}
+.iso-step-chip {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.iso-step-chip input {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.iso-step-chip input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.5);
+}
+
+.iso-undo-chip {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.iso-chip-btn {
+  margin-top: 4px;
+  width: 100%;
+  padding: 6px 8px;
+  text-align: center;
 }
