@@ -37,8 +37,14 @@
               Höjd från referenslinje (offset)
               <span class="unit">(mm)</span>
             </label>
-            <input id="height2" type="number" min="0" step="0.1" value="75" />
-          </div>
+<input
+  id="height2"
+  type="text"
+  inputmode="decimal"
+  enterkeyhint="done"
+  autocomplete="off"
+  value="45"
+/>         </div>
 
           <div class="field">
             <label for="angle2">
@@ -48,12 +54,11 @@
 <input
   id="angle2"
   type="text"
-  inputmode="numeric"
-  pattern="[0-9]*"
+  inputmode="decimal"
   enterkeyhint="done"
   autocomplete="off"
   value="45"
-/>          </div>
+/>        </div>
 
           <button class="calc" id="calcHeightAngle">
             Beräkna <span aria-hidden="true">➜</span>
@@ -148,11 +153,10 @@
               <div class="step-inline">
                 <div class="step-field">
                   <label for="stepMm">Mått per steg <span class="unit">(mm)</span></label>
-                  <input
+<input
   id="stepMm"
   type="text"
-  inputmode="numeric"
-  pattern="[0-9]*"
+  inputmode="decimal"
   enterkeyhint="done"
   autocomplete="off"
   value="100"
@@ -193,12 +197,11 @@
 <input
   id="offsetAngle"
   type="text"
-  inputmode="numeric"
-  pattern="[0-9]*"
+  inputmode="decimal"
   enterkeyhint="done"
   autocomplete="off"
   value="45"
-/>                <div class="note">För E/N/S/W: + = upp, − = ner.</div>
+/>               <div class="note">För E/N/S/W: + = upp, − = ner.</div>
               </div>
 
               <div class="field mb0">
@@ -206,12 +209,11 @@
 <input
   id="offsetMm"
   type="text"
-  inputmode="numeric"
-  pattern="[0-9]*"
+  inputmode="decimal"
   enterkeyhint="done"
   autocomplete="off"
   value="100"
-/>                <div class="note">Katet (förflyttning). Segment blir längre.</div>
+/>               <div class="note">Katet (förflyttning). Segment blir längre.</div>
               </div>
             </div>
 
@@ -220,12 +222,11 @@
 <input
   id="offsetCcMm"
   type="text"
-  inputmode="numeric"
-  pattern="[0-9]*"
+  inputmode="decimal"
   enterkeyhint="done"
   autocomplete="off"
   placeholder="Valfritt"
-/>              <div class="note">
+/>             <div class="note">
                 Om du anger detta justeras föregående raka steg så att C.C-måttet stämmer.
               </div>
             </div>
@@ -242,12 +243,11 @@
 <input
   id="bendRadiusMm"
   type="text"
-  inputmode="numeric"
-  pattern="[0-9]*"
+  inputmode="decimal"
   enterkeyhint="done"
   autocomplete="off"
   value="56"
-/>                <div class="note">Används på alla böjar där radie får plats.</div>
+/>              <div class="note">Används på alla böjar där radie får plats.</div>
               </div>
 
               <div class="field mb0">

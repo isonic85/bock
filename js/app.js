@@ -2314,11 +2314,18 @@ async function saveCurrentDrawing(forceNew = false) {
 function bindNumericInputUx(input, { restoreOnEmpty = true } = {}) {
   if (!input) return;
 
-  let clearedThisFocus = false;
-
   const sanitize = () => {
-    const original = input.value ?? "";
-    const cleaned = String(original).replace(/[^\d]/g, "");
+    const original = String(input.value ?? "");
+    let cleaned = original.replace(/\./g, ",");      // punkt blir komma
+    cleaned = cleaned.replace(/[^0-9,]/g, "");       // tillåt bara siffror + komma
+
+    const firstComma = cleaned.indexOf(",");
+    if (firstComma !== -1) {
+      cleaned =
+        cleaned.slice(0, firstComma + 1) +
+        cleaned.slice(firstComma + 1).replace(/,/g, "");
+    }
+
     if (cleaned !== original) {
       input.value = cleaned;
     }
@@ -2327,11 +2334,6 @@ function bindNumericInputUx(input, { restoreOnEmpty = true } = {}) {
   on(input, "focus", () => {
     input.dataset.prevValue = input.value ?? "";
     input.value = "";
-    clearedThisFocus = true;
-  });
-
-  on(input, "pointerdown", () => {
-    clearedThisFocus = false;
   });
 
   on(input, "input", sanitize);
@@ -2342,8 +2344,6 @@ function bindNumericInputUx(input, { restoreOnEmpty = true } = {}) {
     if (!input.value.trim() && restoreOnEmpty) {
       input.value = input.dataset.prevValue ?? "";
     }
-
-    clearedThisFocus = false;
   });
 
   on(input, "keydown", (e) => {
