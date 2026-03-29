@@ -1032,7 +1032,7 @@ svg {
 
 @media (max-width: 520px) {
   #isoCanvas {
-    height: clamp(220px, 34vh, 320px);
+    height: clamp(300px, 48vh, 420px);
   }
 
   .iso-mobile-status {
