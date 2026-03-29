@@ -161,12 +161,18 @@
     doc.setTextColor(0, 0, 0);
     doc.text(text, labelX, labelY + 1.0, { align: "center" });
   }
+function shouldDrawOffsetBaseDim(step) {
+  if (!step || step.type !== "OFF") return false;
 
-  function drawPdfOffsetBaseTotalDim(doc, points3d, stepIndex, toPdf, centroid2, state, projectIso) {
-    if (stepIndex <= 0) return;
+  if (step.dir === "UP" || step.dir === "DOWN") return false;
 
-    const step = state.isoSteps[stepIndex];
-    if (!step || step.type !== "OFF") return;
+  return true;
+}
+function drawPdfOffsetBaseTotalDim(doc, points3d, stepIndex, toPdf, centroid2, state, projectIso) {
+  if (stepIndex <= 0) return;
+
+  const step = state.isoSteps[stepIndex];
+  if (!shouldDrawOffsetBaseDim(step)) return;
 
     const prevStepStart = points3d[stepIndex - 1];
     const offsetStart = points3d[stepIndex];

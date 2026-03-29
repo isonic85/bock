@@ -383,48 +383,59 @@ const DEFAULT_VIEW = Object.freeze({
     on(dom.angle2Input, "input", calculateHeightAngle);
   }
 
-  function buildOffsetStep(dir, angleDeg, offsetMm) {
-    const absAngle = Math.abs(angleDeg);
-    if (!(absAngle > 0 && absAngle < 90)) return null;
+ function buildOffsetStep(baseDir, offsetDir, angleDeg, offsetMm) {
+  const absAngle = Math.abs(angleDeg);
+  if (!(absAngle > 0 && absAngle < 90)) return null;
 
-    const angleRad = degToRad(absAngle);
-    const sinA = Math.sin(angleRad);
-    const tanA = Math.tan(angleRad);
-    if (Math.abs(sinA) < 1e-9 || Math.abs(tanA) < 1e-9) return null;
+  const forward = dirMap[baseDir];
+  const side = dirMap[offsetDir];
 
-    const mm = offsetMm / sinA;
-    const P = offsetMm / tanA;
-    const sign = angleDeg >= 0 ? 1 : -1;
+  if (!forward || !side) return null;
 
-    let proj = v3();
-    let offv = v3();
+  // Offset får inte ligga i samma eller motsatt riktning som framåtriktningen
+  const parallel =
+    forward.dx * side.dx +
+    forward.dy * side.dy +
+    forward.dz * side.dz;
 
-    if (["E", "W", "N", "S"].includes(dir)) {
-      const v = dirMap[dir];
-      proj = { dx: v.dx * P, dy: v.dy * P, dz: 0 };
-      offv = { dx: 0, dy: 0, dz: sign * offsetMm };
-    } else if (["UP", "DOWN"].includes(dir)) {
-      const v = dirMap[dir];
-      proj = { dx: 0, dy: 0, dz: v.dz * P };
-      offv = { dx: sign * offsetMm, dy: 0, dz: 0 };
-    } else {
-      return null;
-    }
+  if (Math.abs(parallel) > 1e-9) return null;
 
-    return {
-      type: "OFF",
-      dir,
-      ang: angleDeg,
-      off: offsetMm,
-      mm,
-      P,
-      proj,
-      offv,
-      dx: proj.dx + offv.dx,
-      dy: proj.dy + offv.dy,
-      dz: proj.dz + offv.dz
-    };
-  }
+  const angleRad = degToRad(absAngle);
+  const sinA = Math.sin(angleRad);
+  const tanA = Math.tan(angleRad);
+
+  if (Math.abs(sinA) < 1e-9 || Math.abs(tanA) < 1e-9) return null;
+
+  const mm = offsetMm / sinA;
+  const P = offsetMm / tanA;
+
+  const proj = {
+    dx: forward.dx * P,
+    dy: forward.dy * P,
+    dz: forward.dz * P
+  };
+
+  const offv = {
+    dx: side.dx * offsetMm,
+    dy: side.dy * offsetMm,
+    dz: side.dz * offsetMm
+  };
+
+  return {
+    type: "OFF",
+    dir: offsetDir,     // knappen användaren tryckte på
+    baseDir,            // riktningen röret gick innan offseten
+    ang: absAngle,
+    off: offsetMm,
+    mm,
+    P,
+    proj,
+    offv,
+    dx: proj.dx + offv.dx,
+    dy: proj.dy + offv.dy,
+    dz: proj.dz + offv.dz
+  };
+}
 
   function parseSteps(text) {
     const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
@@ -506,9 +517,9 @@ const DEFAULT_VIEW = Object.freeze({
 
     state.isoSteps.forEach((step, index) => {
       const li = document.createElement("li");
-      li.textContent = step.type === "CARD"
-        ? `${index + 1}. ${step.dir} ${step.mm} mm`
-        : `${index + 1}. OFFSET ${step.dir} v:${step.ang}° off:${step.off}mm → L:${step.mm.toFixed(1)}mm${step.ccWanted ? ` • CC:${step.ccWanted}mm` : ""}`;
+     li.textContent = step.type === "CARD"
+  ? `${index + 1}. ${step.dir} ${step.mm} mm`
+  : `${index + 1}. OFFSET ${step.dir} v:${step.ang}° off:${step.off}mm → L:${step.mm.toFixed(1)}mm${step.ccWanted ? ` • CC:${step.ccWanted}mm` : ""}${step.ccAfterWanted ? ` • CC efter:${step.ccAfterWanted}mm` : ""}${step.ccAfterBase ? ` • ref:${step.ccAfterBase}mm` : ""}`;
       dom.stepsListEl.appendChild(li);
     });
         syncIsoMobileSections();
@@ -1294,12 +1305,19 @@ if (!found) {
     ctx.fillText(text, labelX, labelY + 0.5);
     ctx.restore();
   }
+function shouldDrawOffsetBaseDim(step) {
+  if (!step || step.type !== "OFF") return false;
 
-  function drawOffsetBaseTotalDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, dimSpread, placedLabels = []) {
-    if (stepIndex <= 0) return;
+  // Dölj blått hjälpmått för vertikala offsetar tills vi har en egen logik för dem
+  if (step.dir === "UP" || step.dir === "DOWN") return false;
 
-    const step = state.isoSteps[stepIndex];
-    if (!step || step.type !== "OFF") return;
+  return true;
+}
+function drawOffsetBaseTotalDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, dimSpread, placedLabels = []) {
+  if (stepIndex <= 0) return;
+
+  const step = state.isoSteps[stepIndex];
+  if (!shouldDrawOffsetBaseDim(step)) return;
 
     const prevStepStart = points3d[stepIndex - 1];
     const offsetStart = points3d[stepIndex];
@@ -1715,69 +1733,191 @@ for (const bend of geometry.bends) {
 }
   }
 
-  function addCardinalStep(dir) {
-    const mm = readNumber(dom.stepMmInput);
-    if (!Number.isFinite(mm) || mm <= 0) return;
-    state.isoSteps.push({ type: "CARD", dir, mm });
-    renderStepsList();
-    syncTextareaFromSteps();
-    fitView(false);
-        markDirty(true);
-    drawIso();
+  function getLastCardinalDir() {
+  for (let i = state.isoSteps.length - 1; i >= 0; i--) {
+    const step = state.isoSteps[i];
+    if (step?.type === "CARD" && dirMap[step.dir]) {
+      return step.dir;
+    }
+  }
+  return null;
+}
+
+function getStepDirectionVector(step) {
+  if (!step) return null;
+
+  if (step.type === "CARD") {
+    return dirMap[step.dir] || null;
   }
 
-  function addOffsetStep(dir) {
-    const values = validateOffsetInputs();
+  if (step.type === "OFF") {
+    const v = { x: step.dx || 0, y: step.dy || 0, z: step.dz || 0 };
+    const n = norm3(v);
+    return n.L > 1e-9 ? { dx: n.x, dy: n.y, dz: n.z } : null;
+  }
 
-    if (!values) {
-      dom.errorOffset.textContent = "Vinkel får inte vara 0° eller ±90°. Offset måste vara > 0.";
-      return show(dom.errorOffset, true);
+  return null;
+}
+
+function isNinetyBetweenSteps(prevStep, nextStep) {
+  const a = getStepDirectionVector(prevStep);
+  const b = getStepDirectionVector(nextStep);
+  if (!a || !b) return false;
+
+  const dot = a.dx * b.dx + a.dy * b.dy + a.dz * b.dz;
+  return Math.abs(dot) < 1e-6;
+}
+
+function findCcReferenceStartIndex(offsetStepIndex) {
+  // Vi letar bakåt efter senaste 90° före offseten.
+  // Hittar vi ingen, används startpunkten = punktindex 0.
+  for (let i = offsetStepIndex - 1; i >= 1; i--) {
+    const prev = state.isoSteps[i - 1];
+    const curr = state.isoSteps[i];
+
+    if (isNinetyBetweenSteps(prev, curr)) {
+      return i; // punkt efter den 90°-böjen
     }
+  }
 
-    show(dom.errorOffset, false);
+  return 0;
+}
 
-    const step = buildOffsetStep(dir, values.ang, values.off);
-    if (!step) {
-      dom.errorOffset.textContent = "Kunde inte skapa offset från vinkel och offset.";
-      return show(dom.errorOffset, true);
-    }
+function getCcAfterOffsetCandidate(nextDir) {
+  const offsetStepIndex = state.isoSteps.length - 1;
+  const last = state.isoSteps[offsetStepIndex];
+  const beforeLast = state.isoSteps[offsetStepIndex - 1];
 
-    const rawCc = dom.offsetCcMmInput?.value?.trim() ?? "";
-    const hasCc = rawCc !== "";
+  if (!last || !beforeLast) return null;
+  if (last.type !== "OFF") return null;
+  if (beforeLast.type !== "CARD") return null;
 
-    if (hasCc) {
-      const ccWanted = parseFloat(rawCc.replace(",", "."));
+  // Bara om man fortsätter i samma riktning som raka steget före offseten
+  if (beforeLast.dir !== nextDir) return null;
+
+  const points = stepsToPoints(state.isoSteps);
+  const offsetStartPoint = points[offsetStepIndex];
+  if (!offsetStartPoint) return null;
+
+  const referencePointIndex = findCcReferenceStartIndex(offsetStepIndex);
+  const referencePoint = points[referencePointIndex];
+  if (!referencePoint) return null;
+
+  const baseRunBeforeOffset =
+    dist3(referencePoint, offsetStartPoint) + last.P;
+
+  return {
+    offsetStep: last,
+    previousCardinal: beforeLast,
+    offsetStepIndex,
+    referencePointIndex,
+    baseRunBeforeOffset
+  };
+}
+async function addCardinalStep(dir) {
+  let mm = readNumber(dom.stepMmInput);
+  if (!Number.isFinite(mm) || mm <= 0) return;
+
+  const ccCandidate = getCcAfterOffsetCandidate(dir);
+
+  if (ccCandidate) {
+    const wantsCc = await openConfirmModal("Vill du ange C.C mått för sträckan efter offseten?");
+
+    if (wantsCc) {
+      const rawCc = window.prompt("Ange önskat C.C mått (mm):", "");
+      const ccWanted = rawCc ? parseFloat(String(rawCc).replace(",", ".")) : NaN;
 
       if (!Number.isFinite(ccWanted) || ccWanted <= 0) {
         dom.errorOffset.textContent = "C.C mått måste vara större än 0.";
-        return show(dom.errorOffset, true);
+        show(dom.errorOffset, true);
+        return;
       }
 
-      const prev = state.isoSteps[state.isoSteps.length - 1];
+      const newLen = ccWanted - ccCandidate.baseRunBeforeOffset;
 
-      if (!prev || prev.type !== "CARD") {
-        dom.errorOffset.textContent = "C.C mått kräver ett rakt steg direkt före offseten.";
-        return show(dom.errorOffset, true);
+      if (!Number.isFinite(newLen) || newLen <= 0) {
+        dom.errorOffset.textContent =
+          "C.C mått är för litet i förhållande till sträckan fram till offseten.";
+        show(dom.errorOffset, true);
+        return;
       }
 
-      const newPrevLen = ccWanted - step.P;
+      mm = parseFloat(newLen.toFixed(3));
+      ccCandidate.offsetStep.ccAfterWanted = ccWanted;
+      ccCandidate.offsetStep.ccAfterBase = parseFloat(ccCandidate.baseRunBeforeOffset.toFixed(3));
+    }
+  }
 
-      if (!Number.isFinite(newPrevLen) || newPrevLen <= 0) {
-        dom.errorOffset.textContent = "C.C mått är för litet i förhållande till offsetens projektion.";
-        return show(dom.errorOffset, true);
-      }
+  show(dom.errorOffset, false);
 
-      prev.mm = parseFloat(newPrevLen.toFixed(3));
-      step.ccWanted = ccWanted;
+  state.isoSteps.push({ type: "CARD", dir, mm });
+  renderStepsList();
+  syncTextareaFromSteps();
+  fitView(false);
+  markDirty(true);
+  drawIso();
+}
+
+  function addOffsetStep(offsetDir) {
+  const values = validateOffsetInputs();
+
+  if (!values) {
+    dom.errorOffset.textContent = "Vinkel får inte vara 0° eller ±90°. Offset måste vara > 0.";
+    return show(dom.errorOffset, true);
+  }
+
+  const baseDir = getLastCardinalDir();
+
+  if (!baseDir) {
+    dom.errorOffset.textContent = "Lägg först ett rakt steg innan du gör offset.";
+    return show(dom.errorOffset, true);
+  }
+
+  const step = buildOffsetStep(baseDir, offsetDir, values.ang, values.off);
+  if (!step) {
+    dom.errorOffset.textContent =
+      "Ogiltig offset-riktning för nuvarande rördragning. Välj ett sidled/upp/ner-håll.";
+    return show(dom.errorOffset, true);
+  }
+
+  show(dom.errorOffset, false);
+
+  const rawCc = dom.offsetCcMmInput?.value?.trim() ?? "";
+  const hasCc = rawCc !== "";
+
+  if (hasCc) {
+    const ccWanted = parseFloat(rawCc.replace(",", "."));
+
+    if (!Number.isFinite(ccWanted) || ccWanted <= 0) {
+      dom.errorOffset.textContent = "C.C mått måste vara större än 0.";
+      return show(dom.errorOffset, true);
     }
 
-    state.isoSteps.push(step);
-    renderStepsList();
-    syncTextareaFromSteps();
-    fitView(false);
-        markDirty(true);
-    drawIso();
+    const prev = state.isoSteps[state.isoSteps.length - 1];
+
+    if (!prev || prev.type !== "CARD") {
+      dom.errorOffset.textContent = "C.C mått kräver ett rakt steg direkt före offseten.";
+      return show(dom.errorOffset, true);
+    }
+
+    const newPrevLen = ccWanted - step.P;
+
+    if (!Number.isFinite(newPrevLen) || newPrevLen <= 0) {
+      dom.errorOffset.textContent = "C.C mått är för litet i förhållande till offsetens projektion.";
+      return show(dom.errorOffset, true);
+    }
+
+    prev.mm = parseFloat(newPrevLen.toFixed(3));
+    step.ccWanted = ccWanted;
   }
+
+  state.isoSteps.push(step);
+  renderStepsList();
+  syncTextareaFromSteps();
+  fitView(false);
+  markDirty(true);
+  drawIso();
+}
 
   function initIsoControls() {
     on(dom.offsetEnabled, "change", () => {
@@ -1813,10 +1953,14 @@ for (const bend of geometry.bends) {
       drawIso();
     });
 
-    dom.stepButtons.forEach((btn) => on(btn, "click", () => {
-      const dir = btn.dataset.dir;
-      dom.offsetEnabled.checked ? addOffsetStep(dir) : addCardinalStep(dir);
-    }));
+  dom.stepButtons.forEach((btn) => on(btn, "click", async () => {
+  const dir = btn.dataset.dir;
+  if (dom.offsetEnabled.checked) {
+    addOffsetStep(dir);
+  } else {
+    await addCardinalStep(dir);
+  }
+}));
 
     on(dom.undoStepBtn, "click", () => {
       state.isoSteps.pop();
