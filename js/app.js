@@ -89,9 +89,7 @@
     stepCountChip: byId("stepCountChip"),
     points3dInput: byId("points3d"),
     errorIso: byId("errorIso"),
-    isoCountOut: byId("isoCount"),
-    isoLenOut: byId("isoLen"),
-    bendCountOut: byId("bendCountOut"),
+isoLenOut: byId("isoLen"),
 
     isoCanvas: byId("isoCanvas"),
     resetViewBtn: byId("resetViewBtn"),
@@ -754,6 +752,94 @@
     ctxIso.restore();
   }
 
+  function boxesOverlap(a, b, pad = 6) {
+  return !(
+    a.x + a.w + pad < b.x ||
+    b.x + b.w + pad < a.x ||
+    a.y + a.h + pad < b.y ||
+    b.y + b.h + pad < a.y
+  );
+}
+
+function collidesAny(box, placed, pad = 6) {
+  return placed.some((other) => boxesOverlap(box, other, pad));
+}
+
+function makeBoxFromCenter(cx, cy, w, h) {
+  return {
+    x: cx - w / 2,
+    y: cy - h / 2,
+    w,
+    h
+  };
+}
+
+function measureCanvasDimLayout(ctx, a, b, text, outward, opts = {}) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const segL = Math.hypot(dx, dy);
+  if (segL < 1e-6) return null;
+
+  const ux = dx / segL;
+  const uy = dy / segL;
+  const nx = -uy;
+  const ny = ux;
+
+  const off = opts.offPx ?? 10;
+  const ex = nx * off * outward;
+  const ey = ny * off * outward;
+  const need = Math.max(0, (opts.minLenPx ?? 26) - segL);
+
+  const aDim = {
+    x: a.x + ex - ux * (need / 2),
+    y: a.y + ey - uy * (need / 2)
+  };
+  const bDim = {
+    x: b.x + ex + ux * (need / 2),
+    y: b.y + ey + uy * (need / 2)
+  };
+
+  const mx = (aDim.x + bDim.x) / 2;
+  const my = (aDim.y + bDim.y) / 2;
+
+  ctx.save();
+  ctx.font = opts.font ?? "12px system-ui";
+  const tw = ctx.measureText(text).width;
+  ctx.restore();
+
+  const th = opts.textH ?? 14;
+
+  return {
+    center: { x: mx, y: my },
+    textBox: makeBoxFromCenter(mx, my, tw + 8, th + 6)
+  };
+}
+
+function placeCanvasDimCAD(ctx, a, b, text, outward, placed, opts = {}) {
+  const baseOff = opts.offPx ?? 10;
+  const attempts = [1, 1.35, 1.75, 2.2, 2.8];
+  const sides = [outward, -outward];
+
+  for (const side of sides) {
+    for (const mul of attempts) {
+      const testOpts = { ...opts, offPx: baseOff * mul };
+      const layout = measureCanvasDimLayout(ctx, a, b, text, side, testOpts);
+      if (!layout) continue;
+
+      if (!collidesAny(layout.textBox, placed, 6)) {
+        drawCanvasDimCAD(ctx, a, b, text, side, testOpts);
+        placed.push(layout.textBox);
+        return true;
+      }
+    }
+  }
+
+  const fallback = measureCanvasDimLayout(ctx, a, b, text, outward, opts);
+  drawCanvasDimCAD(ctx, a, b, text, outward, opts);
+  if (fallback) placed.push(fallback.textBox);
+  return false;
+}
+
 function drawEmptyIsoGrid(ctx, toCanvas, extent = 2000, step = 50) {
   if (!ctx) return;
 
@@ -1129,7 +1215,7 @@ function drawEmptyIsoGrid(ctx, toCanvas, extent = 2000, step = 50) {
     drawIso();
   }
 
-  function drawArcLabelOnCanvas(ctx, bend, toCanvas, centroidCanvas, dimSpread) {
+  function drawArcLabelOnCanvas(ctx, bend, toCanvas, centroidCanvas, dimSpread, placedLabels = []) {
     if (!bend) return;
     const arcPts = sampleBendArc3d(bend, 28);
     if (arcPts.length < 3) return;
@@ -1152,10 +1238,28 @@ function drawEmptyIsoGrid(ctx, toCanvas, extent = 2000, step = 50) {
     nx *= sign;
     ny *= sign;
 
-    const labelX = mid.x + nx * 24 * dimSpread;
-    const labelY = mid.y + ny * 24 * dimSpread;
-    const text = `R ${bend.radius.toFixed(1)} • B ${bend.arcLen.toFixed(1)} mm`;
+  const text = `R ${bend.radius.toFixed(1)} • B ${bend.arcLen.toFixed(1)} mm`;
 
+let labelX = null;
+let labelY = null;
+let found = false;
+
+for (const mul of [1, 1.35, 1.75, 2.2, 2.8]) {
+  const tx = mid.x + nx * 24 * dimSpread * mul;
+  const ty = mid.y + ny * 24 * dimSpread * mul;
+
+  if (placeArcLabelBox(ctx, text, tx, ty, placedLabels)) {
+    labelX = tx;
+    labelY = ty;
+    found = true;
+    break;
+  }
+}
+
+if (!found) {
+  labelX = mid.x + nx * 24 * dimSpread;
+  labelY = mid.y + ny * 24 * dimSpread;
+}
     ctx.save();
     ctx.font = "12px system-ui";
 
@@ -1183,7 +1287,7 @@ function drawEmptyIsoGrid(ctx, toCanvas, extent = 2000, step = 50) {
     ctx.restore();
   }
 
-  function drawOffsetBaseTotalDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, dimSpread) {
+  function drawOffsetBaseTotalDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, dimSpread, placedLabels = []) {
     if (stepIndex <= 0) return;
 
     const step = state.isoSteps[stepIndex];
@@ -1205,26 +1309,27 @@ function drawEmptyIsoGrid(ctx, toCanvas, extent = 2000, step = 50) {
 
     if (Math.hypot(b.x - a.x, b.y - a.y) <= 2) return;
 
-    drawCanvasDimCAD(
-      ctx,
-      a,
-      b,
-      fmtMm(totalLen, 1),
-      outwardSign(a, b, centroidCanvas),
-      {
-        color: "#38bdf8",
-        extColor: "rgba(56,189,248,.55)",
-        offPx: 26 * dimSpread,
-        minLenPx: 34,
-        font: "12px system-ui",
-        lineW: 1.4,
-        extW: 1.0,
-        dotR: 2.2,
-        dotFill: "#38bdf8",
-        textColor: "#38bdf8",
-        gapPad: 6
-      }
-    );
+placeCanvasDimCAD(
+  ctx,
+  a,
+  b,
+  fmtMm(totalLen, 1),
+  outwardSign(a, b, centroidCanvas),
+  placedLabels,
+  {
+    color: "#38bdf8",
+    extColor: "rgba(56,189,248,.55)",
+    offPx: 26 * dimSpread,
+    minLenPx: 34,
+    font: "12px system-ui",
+    lineW: 1.4,
+    extW: 1.0,
+    dotR: 2.2,
+    dotFill: "#38bdf8",
+    textColor: "#38bdf8",
+    gapPad: 6
+  }
+);
   }
 
   function describeBendType(steps, vertexIndex) {
@@ -1382,15 +1487,26 @@ function drawEmptyIsoGrid(ctx, toCanvas, extent = 2000, step = 50) {
     dom.zeroBendWarn.style.display = warn ? "block" : "none";
   }
 
+function placeArcLabelBox(ctx, text, x, y, placed) {
+  ctx.save();
+  ctx.font = "12px system-ui";
+  const tw = ctx.measureText(text).width;
+  ctx.restore();
+
+  const box = makeBoxFromCenter(x, y, tw + 14, 20);
+  if (collidesAny(box, placed, 6)) return null;
+
+  placed.push(box);
+  return box;
+}
+
   function drawIso() {
     if (!ctxIso) return;
 
 if (!state.isoSteps.length) {
   show(dom.errorIso, false);
 
-  if (dom.isoCountOut) dom.isoCountOut.textContent = "–";
-  if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
-  if (dom.bendCountOut) dom.bendCountOut.textContent = "–";
+if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
 
   const { w, h } = ensureCanvasDpr();
   ctxIso.clearRect(0, 0, w, h);
@@ -1417,9 +1533,7 @@ if (!state.isoSteps.length) {
 if (dom.radiusEnabled.checked && !radiusConfig) {
   show(dom.errorRadius, true);
 
-  if (dom.isoCountOut) dom.isoCountOut.textContent = "–";
-  if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
-  if (dom.bendCountOut) dom.bendCountOut.textContent = "–";
+if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
 
   const { w, h } = ensureCanvasDpr();
   ctxIso.clearRect(0, 0, w, h);
@@ -1435,10 +1549,7 @@ if (dom.radiusEnabled.checked && !radiusConfig) {
     const geometry = buildRoundedGeometry(points3d);
     state.view.pivot = getModelPivot(geometry.points3d);
 
-    if (dom.isoCountOut) dom.isoCountOut.textContent = String(points3d.length);
 if (dom.isoLenOut) dom.isoLenOut.textContent = fmtMm(geometry.totalLen, 1);
-if (dom.bendCountOut) dom.bendCountOut.textContent = String(geometry.bendCount);
-
     renderZeroBendList(geometry);
 
     const { w, h } = ensureCanvasDpr();
@@ -1459,7 +1570,7 @@ if (dom.bendCountOut) dom.bendCountOut.textContent = String(geometry.bendCount);
 
     const centroidCanvas = toCanvas(centroid);
     const dimSpread = clamp(1 / Math.sqrt(Math.max(state.view.zoom, 1e-6)), 0.75, 2.2);
-
+const placedLabels = [];
     ctxIso.clearRect(0, 0, w, h);
     drawIsoGrid(ctxIso, points3d, toCanvas, w, h);
     drawMiniAxes();
@@ -1540,30 +1651,55 @@ if (dom.bendCountOut) dom.bendCountOut.textContent = String(geometry.bendCount);
       const b = toCanvas(projectIso(seg.end));
       if (seg.len <= 1e-4 || Math.hypot(b.x - a.x, b.y - a.y) <= 2) continue;
 
-      drawCanvasDimCAD(ctxIso, a, b, fmtMm(seg.len, 1), outwardSign(a, b, centroidCanvas), {
-        color: "#e5e7eb",
-        extColor: "rgba(248,250,252,.65)",
-        offPx: 14 * dimSpread,
-        minLenPx: 26,
-        font: "12px system-ui",
-        lineW: 1.3,
-        extW: 1.0,
-        dotR: 2.2,
-        dotFill: "#e5e7eb",
-        textColor: "#e5e7eb",
-        gapPad: 5
-      });
+placeCanvasDimCAD(
+  ctxIso,
+  a,
+  b,
+  fmtMm(seg.len, 1),
+  outwardSign(a, b, centroidCanvas),
+  placedLabels,
+  {
+    color: "#e5e7eb",
+    extColor: "rgba(248,250,252,.65)",
+    offPx: 14 * dimSpread,
+    minLenPx: 26,
+    font: "12px system-ui",
+    lineW: 1.3,
+    extW: 1.0,
+    dotR: 2.2,
+    dotFill: "#e5e7eb",
+    textColor: "#e5e7eb",
+    gapPad: 5
+  }
+);
     }
 
-    for (let i = 0; i < state.isoSteps.length; i++) {
-      if (state.isoSteps[i]?.type === "OFF") {
-        drawOffsetBaseTotalDim(ctxIso, points3d, i, toCanvas, centroidCanvas, dimSpread);
-      }
-    }
+  for (let i = 0; i < state.isoSteps.length; i++) {
+  if (state.isoSteps[i]?.type === "OFF") {
+    drawOffsetBaseTotalDim(
+      ctxIso,
+      points3d,
+      i,
+      toCanvas,
+      centroidCanvas,
+      dimSpread,
+      placedLabels
+    );
+  }
+}
 
-    for (const bend of geometry.bends) {
-      if (bend) drawArcLabelOnCanvas(ctxIso, bend, toCanvas, centroidCanvas, dimSpread);
-    }
+for (const bend of geometry.bends) {
+  if (bend) {
+    drawArcLabelOnCanvas(
+      ctxIso,
+      bend,
+      toCanvas,
+      centroidCanvas,
+      dimSpread,
+      placedLabels
+    );
+  }
+}
   }
 
   function addCardinalStep(dir) {
@@ -1686,9 +1822,7 @@ if (dom.bendCountOut) dom.bendCountOut.textContent = String(geometry.bendCount);
       state.isoSteps = [];
       renderStepsList();
       syncTextareaFromSteps();
-      if (dom.isoCountOut) dom.isoCountOut.textContent = "–";
 if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
-if (dom.bendCountOut) dom.bendCountOut.textContent = "–";
       show(dom.errorIso, false);
       show(dom.errorOffset, false);
       show(dom.errorRadius, false);
@@ -1704,9 +1838,7 @@ if (dom.bendCountOut) dom.bendCountOut.textContent = "–";
         show(dom.errorIso, true);
         state.isoSteps = [];
         renderStepsList();
-if (dom.isoCountOut) dom.isoCountOut.textContent = "–";
 if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
-if (dom.bendCountOut) dom.bendCountOut.textContent = "–";
         renderZeroBendList(null);
         drawIso();
         return;
@@ -2046,9 +2178,7 @@ function resetAppToNewDrawing() {
   state.isoSteps = [];
   renderStepsList();
 
-if (dom.isoCountOut) dom.isoCountOut.textContent = "–";
 if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
-if (dom.bendCountOut) dom.bendCountOut.textContent = "–";
 
   renderZeroBendList(null);
   fitView(false);
