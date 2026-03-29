@@ -492,9 +492,7 @@ svg {
 
 .zero-table {
   width: 100%;
-  border-collapse: collapse;
-  min-width: 560px;
-  font-size: 0.78rem;
+  min-width: 0;
 }
 
 .zero-table th,
