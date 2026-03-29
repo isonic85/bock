@@ -129,10 +129,10 @@ isoLenOut: byId("isoLen"),
     DOWN: { dx: 0, dy: 0, dz: -1 }
   };
 
-  const DEFAULT_VIEW = Object.freeze({
-    pitch: 0.55,
-    yaw: -0.75
-  });
+const DEFAULT_VIEW = Object.freeze({
+  pitch: 0.6154797086703873,
+  yaw: -0.7853981633974483
+});
 
   const state = {
         drawingId: null,
@@ -1208,12 +1208,20 @@ function drawEmptyIsoGrid(ctx, toCanvas, extent = 2000, step = 50) {
     }
   }
 
-  function resetView() {
-    state.view.pitch = DEFAULT_VIEW.pitch;
-    state.view.yaw = DEFAULT_VIEW.yaw;
-    fitView(false);
-    drawIso();
+function resetView() {
+  state.view.pitch = DEFAULT_VIEW.pitch;
+  state.view.yaw = DEFAULT_VIEW.yaw;
+
+  if (!state.isoSteps.length) {
+    state.view.zoom = 1;
+    state.view.panX = 0;
+    state.view.panY = 0;
+    state.view.pivot = { x: 0, y: 0, z: 0 };
   }
+
+  fitView(false);
+  drawIso();
+}
 
   function drawArcLabelOnCanvas(ctx, bend, toCanvas, centroidCanvas, dimSpread, placedLabels = []) {
     if (!bend) return;
@@ -1504,12 +1512,21 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
     if (!ctxIso) return;
 
 if (!state.isoSteps.length) {
+  state.view.zoom = 1;
+  state.view.panX = 0;
+  state.view.panY = 0;
+  state.view.pivot = { x: 0, y: 0, z: 0 };
+
   show(dom.errorIso, false);
 
-if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
+  if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
 
   const { w, h } = ensureCanvasDpr();
   ctxIso.clearRect(0, 0, w, h);
+
+  state.view.baseScale = Math.min(w, h) / 900;
+  state.view.baseCx = w / 2;
+  state.view.baseCy = h / 2;
 
   const toCanvas = (p) => {
     const k = state.view.baseScale * state.view.zoom;
@@ -1518,10 +1535,6 @@ if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
       y: state.view.baseCy + p.y * k + state.view.panY
     };
   };
-
-  state.view.baseScale = Math.min(w, h) / 900;
-  state.view.baseCx = w / 2;
-  state.view.baseCy = h / 2;
 
   drawEmptyIsoGrid(ctxIso, toCanvas, 2000, 50);
   drawMiniAxes();
@@ -2156,6 +2169,7 @@ function resetAppToNewDrawing() {
   dom.bendRadiusMmInput.value = "56";
   dom.zeroBendEnabled.checked = false;
 
+  state.view.pivot = { x: 0, y: 0, z: 0 };
   state.view.pitch = DEFAULT_VIEW.pitch;
   state.view.yaw = DEFAULT_VIEW.yaw;
   state.view.zoom = 1;
