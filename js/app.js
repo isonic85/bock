@@ -1326,57 +1326,43 @@ if (!found) {
     ctx.restore();
   }
 function shouldDrawOffsetBaseDim(step) {
-  if (!step || step.type !== "OFF") return false;
-
-  // Dölj blått hjälpmått när själva basriktningen är vertikal
-  if (step.baseDir === "UP" || step.baseDir === "DOWN") return false;
-
-  return true;
+  return !!step && step.type === "OFF";
 }
 function drawOffsetBaseTotalDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, dimSpread, placedLabels = []) {
-  if (stepIndex <= 0) return;
+  if (stepIndex < 0) return;
 
   const step = state.isoSteps[stepIndex];
   if (!shouldDrawOffsetBaseDim(step)) return;
 
-    const prevStepStart = points3d[stepIndex - 1];
-    const offsetStart = points3d[stepIndex];
+  const cc = getOffsetCcEndpoints(points3d, stepIndex);
+  if (!cc) return;
 
-    const basePoint = {
-      x: offsetStart.x + step.proj.dx,
-      y: offsetStart.y + step.proj.dy,
-      z: offsetStart.z + step.proj.dz
-    };
+  const a = toCanvas(projectIso(cc.startPoint));
+  const b = toCanvas(projectIso(cc.endPoint));
 
-    const totalLen = dist3(prevStepStart, basePoint);
-
-    const a = toCanvas(projectIso(prevStepStart));
-    const b = toCanvas(projectIso(basePoint));
-
-    if (Math.hypot(b.x - a.x, b.y - a.y) <= 2) return;
+  if (Math.hypot(b.x - a.x, b.y - a.y) <= 2) return;
 
 placeCanvasDimCAD(
   ctx,
   a,
   b,
-  fmtMm(totalLen, 1),
+  fmtMm(cc.totalLen, 1),
   outwardSign(a, b, centroidCanvas),
   placedLabels,
   {
     color: "#38bdf8",
     extColor: "rgba(56,189,248,.55)",
-    offPx: 26 * dimSpread,
-    minLenPx: 34,
-    font: "12px system-ui",
-    lineW: 1.4,
-    extW: 1.0,
-    dotR: 2.2,
-    dotFill: "#38bdf8",
     textColor: "#38bdf8",
-    gapPad: 6
+    offPx: 16 * dimSpread,
+    minLenPx: 28,
+    lineW: 1.35,
+    extW: 1,
+    dotR: 2.1,
+    dotFill: "#38bdf8",
+    gapPad: 5
   }
 );
-  }
+}
 
   function describeBendType(steps, vertexIndex) {
     const prev = steps[vertexIndex - 1];
@@ -1786,6 +1772,48 @@ function isNinetyBetweenSteps(prevStep, nextStep) {
 
   const dot = a.dx * b.dx + a.dy * b.dy + a.dz * b.dz;
   return Math.abs(dot) < 1e-6;
+}
+
+function getOffsetCcEndpoints(points3d, offsetStepIndex) {
+  const offsetStep = state.isoSteps[offsetStepIndex];
+  if (!offsetStep || offsetStep.type !== "OFF") return null;
+
+ const beforeOffset = state.isoSteps[offsetStepIndex - 1];
+const afterOffset = state.isoSteps[offsetStepIndex + 1];
+
+if (!beforeOffset || beforeOffset.type !== "CARD") return null;
+
+const startIndex = findCcReferenceStartIndex(offsetStepIndex);
+const startPoint = points3d[startIndex];
+const offsetStartPoint = points3d[offsetStepIndex];
+
+if (!startPoint || !offsetStartPoint) return null;
+
+const dir = dirMap[beforeOffset.dir];
+if (!dir) return null;
+
+const baseRunBeforeOffset =
+  dist3(startPoint, offsetStartPoint) + offsetStep.P;
+
+let totalLen = baseRunBeforeOffset;
+
+// Fortsätter man i samma riktning efter offseten
+if (afterOffset && afterOffset.type === "CARD" && afterOffset.dir === beforeOffset.dir) {
+  totalLen += afterOffset.mm;
+}
+
+const endPoint = {
+  x: startPoint.x + dir.dx * totalLen,
+  y: startPoint.y + dir.dy * totalLen,
+  z: startPoint.z + dir.dz * totalLen
+};
+
+return {
+  startIndex,
+  startPoint,
+  endPoint,
+  totalLen
+};
 }
 
 function findCcReferenceStartIndex(offsetStepIndex) {

@@ -161,70 +161,102 @@
     doc.setTextColor(0, 0, 0);
     doc.text(text, labelX, labelY + 1.0, { align: "center" });
   }
-function shouldDrawOffsetBaseDim(step) {
-  if (!step || step.type !== "OFF") return false;
 
-  if (step.baseDir === "UP" || step.baseDir === "DOWN") return false;
+function getOffsetCcEndpoints(points3d, offsetStepIndex, state, findCcReferenceStartIndex) {
+  const offsetStep = state.isoSteps[offsetStepIndex];
+  if (!offsetStep || offsetStep.type !== "OFF") return null;
 
-  return true;
+  const beforeOffset = state.isoSteps[offsetStepIndex - 1];
+const afterOffset = state.isoSteps[offsetStepIndex + 1];
+
+if (!beforeOffset || beforeOffset.type !== "CARD") return null;
+
+const startIndex = findCcReferenceStartIndex(offsetStepIndex);
+const startPoint = points3d[startIndex];
+const offsetStartPoint = points3d[offsetStepIndex];
+
+if (!startPoint || !offsetStartPoint) return null;
+
+const dir = dirMap[beforeOffset.dir];
+if (!dir) return null;
+
+const baseRunBeforeOffset =
+  dist3(startPoint, offsetStartPoint) + offsetStep.P;
+
+let totalLen = baseRunBeforeOffset;
+
+// Fortsätter man i samma riktning efter offseten
+if (afterOffset && afterOffset.type === "CARD" && afterOffset.dir === beforeOffset.dir) {
+  totalLen += afterOffset.mm;
 }
-function drawPdfOffsetBaseTotalDim(doc, points3d, stepIndex, toPdf, centroid2, state, projectIso) {
-  if (stepIndex <= 0) return;
+
+const endPoint = {
+  x: startPoint.x + dir.dx * totalLen,
+  y: startPoint.y + dir.dy * totalLen,
+  z: startPoint.z + dir.dz * totalLen
+};
+
+return {
+  startIndex,
+  startPoint,
+  endPoint,
+  totalLen
+};
+}
+
+function shouldDrawOffsetBaseDim(step) {
+  return !!step && step.type === "OFF";
+}
+function drawPdfOffsetBaseTotalDim(doc, points3d, stepIndex, toPdf, centroid2, state, projectIso, findCcReferenceStartIndex) {
+  if (stepIndex < 0) return;
 
   const step = state.isoSteps[stepIndex];
   if (!shouldDrawOffsetBaseDim(step)) return;
 
-    const prevStepStart = points3d[stepIndex - 1];
-    const offsetStart = points3d[stepIndex];
+  const cc = getOffsetCcEndpoints(points3d, stepIndex, state, findCcReferenceStartIndex);
+  if (!cc) return;
 
-    const basePoint = {
-      x: offsetStart.x + step.proj.dx,
-      y: offsetStart.y + step.proj.dy,
-      z: offsetStart.z + step.proj.dz
-    };
+  const a = toPdf(projectIso(cc.startPoint));
+  const b = toPdf(projectIso(cc.endPoint));
 
-    const totalLen = dist3(prevStepStart, basePoint);
+  if (Math.hypot(b.x - a.x, b.y - a.y) <= 1) return;
 
-    const a = toPdf(projectIso(prevStepStart));
-    const b = toPdf(projectIso(basePoint));
-
-    if (Math.hypot(b.x - a.x, b.y - a.y) <= 1) return;
-
-    drawPdfDimCAD(
-      doc,
-      a,
-      b,
-      fmtMm(totalLen, 1),
-      outwardSign(a, b, centroid2),
-      {
-        color: [56, 189, 248],
-        extColor: [110, 190, 220],
-        offPx: 16,
-        minLenPx: 28,
-        fontSize: 8,
-        lineW: 0.2,
-        extW: 0.15,
-        dotR: 0.5,
-        dotFill: [56, 189, 248],
-        textColor: [56, 189, 248],
-        gapPad: 1.6
-      }
-    );
-  }
+  drawPdfDimCAD(
+    doc,
+    a,
+    b,
+    fmtMm(cc.totalLen, 1),
+    outwardSign(a, b, centroid2),
+    {
+      color: [56, 189, 248],
+      extColor: [110, 190, 220],
+      offPx: 16,
+      minLenPx: 28,
+      fontSize: 8,
+      lineW: 0.2,
+      extW: 0.15,
+      dotR: 0.5,
+      dotFill: [56, 189, 248],
+      textColor: [56, 189, 248],
+      gapPad: 1.6
+    }
+  );
+}
 
   function createExportIsoPdf(deps) {
-    const {
-      state,
-      dom,
-      validateRadiusInput,
-      stepsToPoints,
-      buildRoundedGeometry,
-      getModelPivot,
-      computeZeroPointBendRows,
-      getDisplayCloudProjected,
-      projectIso,
-      sampleBendArc3d
-    } = deps;
+const {
+  state,
+  dom,
+  validateRadiusInput,
+  stepsToPoints,
+  buildRoundedGeometry,
+  getModelPivot,
+  computeZeroPointBendRows,
+  getDisplayCloudProjected,
+  projectIso,
+  sampleBendArc3d,
+  findCcReferenceStartIndex
+} = deps;
 
     return function exportIsoPdf() {
       try {
@@ -369,7 +401,7 @@ function drawPdfOffsetBaseTotalDim(doc, points3d, stepIndex, toPdf, centroid2, s
 
           for (let i = 0; i < state.isoSteps.length; i++) {
             if (state.isoSteps[i]?.type === "OFF") {
-              drawPdfOffsetBaseTotalDim(doc, pts3d, i, toPdf, centroid2, state, projectIso);
+             drawPdfOffsetBaseTotalDim(doc, pts3d, i, toPdf, centroid2, state, projectIso, findCcReferenceStartIndex);
             }
           }
 
