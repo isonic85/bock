@@ -388,36 +388,49 @@ const {
           doc.circle(p.x, p.y, i === 0 || i === pts2.length - 1 ? 2.0 : 1.4, "F");
         });
 
-        if (state.showDims) {
-          for (const seg of geometry.segments) {
-            if (seg.len <= 1e-4) continue;
-            const a = toPdf(projectIso(seg.start));
-            const b = toPdf(projectIso(seg.end));
-            drawPdfDimCAD(doc, a, b, fmtMm(seg.len, 1), outwardSign(a, b, centroid2), {
-              color: [0, 0, 0],
-              extColor: [120, 120, 120],
-              offPx: 10,
-              minLenPx: 26,
-              fontSize: 8,
-              lineW: 0.18,
-              extW: 0.15,
-              dotR: 0.45,
-              dotFill: [0, 0, 0],
-              textColor: [0, 0, 0],
-              gapPad: 1.6
-            });
-          }
+if (state.showDims) {
+  for (const seg of geometry.segments) {
+    if (seg.len <= 1e-4) continue;
+    const a = toPdf(projectIso(seg.start));
+    const b = toPdf(projectIso(seg.end));
+    drawPdfDimCAD(doc, a, b, fmtMm(seg.len, 1), outwardSign(a, b, centroid2), {
+      color: [0, 0, 0],
+      extColor: [120, 120, 120],
+      offPx: 10,
+      minLenPx: 26,
+      fontSize: 8,
+      lineW: 0.18,
+      extW: 0.15,
+      dotR: 0.45,
+      dotFill: [0, 0, 0],
+      textColor: [0, 0, 0],
+      gapPad: 1.6
+    });
+  }
 
-          for (let i = 0; i < state.isoSteps.length; i++) {
-            if (state.isoSteps[i]?.type === "OFF") {
-             drawPdfOffsetBaseTotalDim(doc, pts3d, i, toPdf, centroid2, state, projectIso, findCcReferenceStartIndex);
-            }
-          }
+  for (let i = 0; i < state.isoSteps.length; i++) {
+    if (state.isoSteps[i]?.type === "OFF") {
+      drawPdfOffsetBaseTotalDim(
+        doc,
+        pts3d,
+        i,
+        toPdf,
+        centroid2,
+        state,
+        projectIso,
+        findCcReferenceStartIndex
+      );
+    }
+  }
+}
 
-          for (const bend of geometry.bends) {
-            if (bend) drawPdfArcLabel(doc, bend, toPdf, centroid2, sampleBendArc3d, projectIso);
-          }
-        }
+if (state.showRadiusDims) {
+  for (const bend of geometry.bends) {
+    if (bend) {
+      drawPdfArcLabel(doc, bend, toPdf, centroid2, sampleBendArc3d, projectIso);
+    }
+  }
+}
 
         for (let i = 1; i < pts2.length - 1; i++) {
           drawPdfAngleLeader(doc, i, pts3d, pts2, centroid2);

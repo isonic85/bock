@@ -2846,18 +2846,19 @@ function initApp() {
   initMobileNumberInputs();
   setupDirtyTracking();
 
-    const exportIsoPdf = window.PdfModule.createExportIsoPdf({
-      state,
-      dom,
-      validateRadiusInput,
-      stepsToPoints,
-      buildRoundedGeometry,
-      getModelPivot,
-      computeZeroPointBendRows,
-      getDisplayCloudProjected,
-      projectIso,
-      sampleBendArc3d
-    });
+const exportIsoPdf = window.PdfModule.createExportIsoPdf({
+  state,
+  dom,
+  validateRadiusInput,
+  stepsToPoints,
+  buildRoundedGeometry,
+  getModelPivot,
+  computeZeroPointBendRows,
+  getDisplayCloudProjected,
+  projectIso,
+  sampleBendArc3d,
+  findCcReferenceStartIndex
+});
     window.PdfModule.initPdfExport(dom.exportPdfBtn, exportIsoPdf);
 
     calculateHeightAngle();
