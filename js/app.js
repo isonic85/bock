@@ -247,6 +247,39 @@ const DEFAULT_VIEW = Object.freeze({
       dom.confirmCancelBtn.focus();
     });
   }
+function scrollFieldUnderCanvas(target) {
+  if (!target || !dom.isoCanvas) return;
+
+  const isIsoField =
+    target.closest("#mode-iso3d") &&
+    (target.matches("input, textarea") || target.closest("input, textarea"));
+
+  if (!isIsoField) return;
+
+  const field =
+    target.closest(".field, details, .iso-section, .iso-steps, .diagram-card") || target;
+
+  const canvasRect = dom.isoCanvas.getBoundingClientRect();
+  const fieldRect = field.getBoundingClientRect();
+
+  const desiredTop = canvasRect.bottom + 8;
+  const delta = fieldRect.top - desiredTop;
+
+  if (Math.abs(delta) < 6) return;
+
+  window.scrollTo({
+    top: window.scrollY + delta,
+    behavior: "smooth"
+  });
+}
+
+on(document, "focusin", (e) => {
+  const target = e.target;
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+
+  // Vänta lite så mobilen hinner öppna tangentbordet först
+  setTimeout(() => scrollFieldUnderCanvas(target), 180);
+});
 
   function initTabs() {
     dom.modeButtons.forEach((btn) => on(btn, "click", () => {
