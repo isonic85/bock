@@ -55,11 +55,6 @@ body {
   overflow-x: hidden;
   background: radial-gradient(circle at top, var(--bg-page-top), var(--bg-page-bottom));
   color: var(--text-main);
-  padding:
-    calc(8px + env(safe-area-inset-top))
-    calc(8px + env(safe-area-inset-right))
-    calc(8px + env(safe-area-inset-bottom))
-    calc(8px + env(safe-area-inset-left));
 }
 
 .app {
