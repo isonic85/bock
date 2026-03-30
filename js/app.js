@@ -254,20 +254,16 @@ function placeIsoInputUnderCanvas(target) {
   if (!target || !dom.isoCanvas) return;
   if (!target.closest("#mode-iso3d")) return;
 
-  const scroller = document.scrollingElement || document.documentElement;
-  const vv = window.visualViewport;
-
   const canvasRect = dom.isoCanvas.getBoundingClientRect();
   const inputRect = target.getBoundingClientRect();
 
-  const viewportOffsetTop = vv ? vv.offsetTop : 0;
   const wantedTop = canvasRect.bottom + 12;
   const delta = inputRect.top - wantedTop;
 
   if (Math.abs(delta) < 6) return;
 
-  scroller.scrollTo({
-    top: scroller.scrollTop + delta - viewportOffsetTop,
+  window.scrollTo({
+    top: window.scrollY + delta,
     behavior: "auto"
   });
 }
