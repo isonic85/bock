@@ -247,69 +247,51 @@ const DEFAULT_VIEW = Object.freeze({
       dom.confirmCancelBtn.focus();
     });
   }
-function scrollFieldUnderCanvas(target) {
-  if (!target || !dom.isoCanvas) return;
-
-  const isIsoField =
-    target.closest("#mode-iso3d") &&
-    (target.matches("input, textarea") || target.closest("input, textarea"));
-
-  if (!isIsoField) return;
-
-  const field =
-    target.closest(".field, details, .iso-section, .iso-steps, .diagram-card") || target;
-
-  const canvasRect = dom.isoCanvas.getBoundingClientRect();
-  const fieldRect = field.getBoundingClientRect();
-
-  const desiredTop = canvasRect.bottom + 8;
-  const delta = fieldRect.top - desiredTop;
-
-  if (Math.abs(delta) < 6) return;
-
-  window.scrollTo({
-    top: window.scrollY + delta,
-    behavior: "instant"
-  });
-}
-
-on(document, "focusin", (e) => {
-  const target = e.target;
-  if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
-
-  // Vänta lite så mobilen hinner öppna tangentbordet först
-  setTimeout(() => scrollFieldUnderCanvas(target), 180);
-});
-
 let activeIsoInput = null;
-let isoScrollTimer = null;
+let isoViewportTimer = null;
 
-function scrollIsoInputUnderCanvas(target) {
+function placeIsoInputUnderCanvas(target) {
   if (!target || !dom.isoCanvas) return;
   if (!target.closest("#mode-iso3d")) return;
+
+  const scroller = document.scrollingElement || document.documentElement;
+  const vv = window.visualViewport;
 
   const canvasRect = dom.isoCanvas.getBoundingClientRect();
   const inputRect = target.getBoundingClientRect();
 
-  const desiredTop = canvasRect.bottom + 10;
-  const delta = inputRect.top - desiredTop;
+  const viewportOffsetTop = vv ? vv.offsetTop : 0;
+  const wantedTop = canvasRect.bottom + 12;
+  const delta = inputRect.top - wantedTop;
 
-  if (Math.abs(delta) < 4) return;
+  if (Math.abs(delta) < 6) return;
 
-  window.scrollBy({
-    top: delta,
-    left: 0,
-    behavior: "instant"
+  scroller.scrollTo({
+    top: scroller.scrollTop + delta - viewportOffsetTop,
+    behavior: "auto"
   });
 }
 
-function scheduleIsoInputScroll(delay = 0) {
-  if (!activeIsoInput) return;
+function settleAndPlaceIsoInput(target, tries = 0, lastHeight = null) {
+  if (!target || target !== activeIsoInput) return;
 
-  clearTimeout(isoScrollTimer);
-  isoScrollTimer = setTimeout(() => {
-    scrollIsoInputUnderCanvas(activeIsoInput);
-  }, delay);
+  const vv = window.visualViewport;
+  if (!vv) {
+    placeIsoInputUnderCanvas(target);
+    return;
+  }
+
+  const currentHeight = vv.height;
+
+  if (tries > 12 || (lastHeight !== null && Math.abs(currentHeight - lastHeight) < 2)) {
+    placeIsoInputUnderCanvas(target);
+    return;
+  }
+
+  clearTimeout(isoViewportTimer);
+  isoViewportTimer = setTimeout(() => {
+    settleAndPlaceIsoInput(target, tries + 1, currentHeight);
+  }, 80);
 }
 
 on(document, "focusin", (e) => {
@@ -319,22 +301,23 @@ on(document, "focusin", (e) => {
 
   activeIsoInput = target;
 
-  scheduleIsoInputScroll(80);
-  scheduleIsoInputScroll(260);
-
-  setTimeout(() => {
-    if (activeIsoInput === target) scrollIsoInputUnderCanvas(target);
-  }, 520);
+  // Låt Safari öppna tangentbordet först, sen justerar vi
+  settleAndPlaceIsoInput(target);
 });
 
 on(document, "focusout", () => {
   activeIsoInput = null;
-  clearTimeout(isoScrollTimer);
+  clearTimeout(isoViewportTimer);
 });
 
 if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", () => scheduleIsoInputScroll(40));
-  window.visualViewport.addEventListener("scroll", () => scheduleIsoInputScroll(40));
+  const handleViewportChange = () => {
+    if (!activeIsoInput) return;
+    settleAndPlaceIsoInput(activeIsoInput);
+  };
+
+  window.visualViewport.addEventListener("resize", handleViewportChange);
+  window.visualViewport.addEventListener("scroll", handleViewportChange);
 }
 
   function initTabs() {
