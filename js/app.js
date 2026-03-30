@@ -250,17 +250,28 @@ const DEFAULT_VIEW = Object.freeze({
 let activeIsoInput = null;
 let isoViewportTimer = null;
 
-function placeIsoInputUnderCanvas(target) {
-  if (!target || !dom.isoCanvas) return;
+function keepIsoInputVisible(target) {
+  if (!target || target !== activeIsoInput) return;
   if (!target.closest("#mode-iso3d")) return;
 
-  const canvasRect = dom.isoCanvas.getBoundingClientRect();
-  const inputRect = target.getBoundingClientRect();
+  const rect = target.getBoundingClientRect();
+  const vv = window.visualViewport;
 
-  const wantedTop = canvasRect.bottom + 12;
-  const delta = inputRect.top - wantedTop;
+  const viewportTop = vv ? vv.offsetTop : 0;
+  const viewportHeight = vv ? vv.height : window.innerHeight;
 
-  if (Math.abs(delta) < 6) return;
+  const topSafe = viewportTop + 12;
+  const bottomSafe = viewportTop + viewportHeight - 16;
+
+  let delta = 0;
+
+  if (rect.top < topSafe) {
+    delta = rect.top - topSafe;
+  } else if (rect.bottom > bottomSafe) {
+    delta = rect.bottom - bottomSafe;
+  }
+
+  if (Math.abs(delta) < 4) return;
 
   window.scrollTo({
     top: window.scrollY + delta,
@@ -268,25 +279,25 @@ function placeIsoInputUnderCanvas(target) {
   });
 }
 
-function settleAndPlaceIsoInput(target, tries = 0, lastHeight = null) {
+function settleIsoInputVisibility(target, tries = 0, lastHeight = null) {
   if (!target || target !== activeIsoInput) return;
 
   const vv = window.visualViewport;
   if (!vv) {
-    placeIsoInputUnderCanvas(target);
+    keepIsoInputVisible(target);
     return;
   }
 
   const currentHeight = vv.height;
 
-  if (tries > 12 || (lastHeight !== null && Math.abs(currentHeight - lastHeight) < 2)) {
-    placeIsoInputUnderCanvas(target);
+  if (tries > 14 || (lastHeight !== null && Math.abs(currentHeight - lastHeight) < 2)) {
+    keepIsoInputVisible(target);
     return;
   }
 
   clearTimeout(isoViewportTimer);
   isoViewportTimer = setTimeout(() => {
-    settleAndPlaceIsoInput(target, tries + 1, currentHeight);
+    settleIsoInputVisibility(target, tries + 1, currentHeight);
   }, 80);
 }
 
@@ -296,20 +307,24 @@ on(document, "focusin", (e) => {
   if (!target.closest("#mode-iso3d")) return;
 
   activeIsoInput = target;
-
-  // Låt Safari öppna tangentbordet först, sen justerar vi
-  settleAndPlaceIsoInput(target);
+  settleIsoInputVisibility(target);
 });
 
-on(document, "focusout", () => {
-  activeIsoInput = null;
+on(document, "focusout", (e) => {
+  const target = e.target;
+  if (target === activeIsoInput) {
+    activeIsoInput = null;
+  }
   clearTimeout(isoViewportTimer);
 });
 
 if (window.visualViewport) {
   const handleViewportChange = () => {
     if (!activeIsoInput) return;
-    settleAndPlaceIsoInput(activeIsoInput);
+    clearTimeout(isoViewportTimer);
+    isoViewportTimer = setTimeout(() => {
+      keepIsoInputVisible(activeIsoInput);
+    }, 30);
   };
 
   window.visualViewport.addEventListener("resize", handleViewportChange);

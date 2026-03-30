@@ -578,11 +578,9 @@ svg {
   .offset-grid { grid-template-columns: 1fr; }
   #isoCanvas { aspect-ratio: 4 / 3; }
 
-  .iso-canvas-card {
-    position: sticky;
-    top: 8px;
-    z-index: 20;
-  }
+.iso-canvas-card {
+  position: static;
+}
 
   .step-inline {
     grid-template-columns: 1fr;
