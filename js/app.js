@@ -269,7 +269,7 @@ function scrollFieldUnderCanvas(target) {
 
   window.scrollTo({
     top: window.scrollY + delta,
-    behavior: "smooth"
+    behavior: "instant"
   });
 }
 
@@ -280,6 +280,66 @@ on(document, "focusin", (e) => {
   // Vänta lite så mobilen hinner öppna tangentbordet först
   setTimeout(() => scrollFieldUnderCanvas(target), 180);
 });
+
+function scrollFieldUnderCanvas(target) {
+  if (!target || !dom.isoCanvas) return;
+  if (!target.closest("#mode-iso3d")) return;
+
+  const field =
+    target.closest(".field, .iso-status-chip, .iso-section, .iso-steps, details") || target;
+
+  const canvasRect = dom.isoCanvas.getBoundingClientRect();
+  const fieldRect = field.getBoundingClientRect();
+
+  const desiredTop = canvasRect.bottom + 10;
+  const delta = fieldRect.top - desiredTop;
+
+  if (Math.abs(delta) < 4) return;
+
+  window.scrollBy({
+    top: delta,
+    left: 0,
+    behavior: "instant"
+  });
+}
+
+let activeIsoInput = null;
+let isoScrollTimer = null;
+
+function scheduleIsoFieldScroll() {
+  if (!activeIsoInput) return;
+
+  clearTimeout(isoScrollTimer);
+  isoScrollTimer = setTimeout(() => {
+    scrollFieldUnderCanvas(activeIsoInput);
+  }, 260);
+}
+
+on(document, "focusin", (e) => {
+  const target = e.target;
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+  if (!target.closest("#mode-iso3d")) return;
+
+  activeIsoInput = target;
+
+  // Direkt
+  scheduleIsoFieldScroll();
+
+  // En extra gång efter att tangentbordet öppnats klart
+  setTimeout(() => {
+    if (activeIsoInput === target) scrollFieldUnderCanvas(target);
+  }, 520);
+});
+
+on(document, "focusout", () => {
+  activeIsoInput = null;
+  clearTimeout(isoScrollTimer);
+});
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", scheduleIsoFieldScroll);
+  window.visualViewport.addEventListener("scroll", scheduleIsoFieldScroll);
+}
 
   function initTabs() {
     dom.modeButtons.forEach((btn) => on(btn, "click", () => {
