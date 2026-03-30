@@ -2036,25 +2036,31 @@ if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
       resetView();
     });
 
-    on(dom.points3dInput, "input", () => {
-      const parsed = parseSteps(dom.points3dInput.value);
+let manualStepsDraft = false;
 
-      if (!parsed) {
-        show(dom.errorIso, true);
-        state.isoSteps = [];
-        renderStepsList();
-if (dom.isoLenOut) dom.isoLenOut.textContent = "–";
-        renderZeroBendList(null);
-        drawIso();
-        return;
-      }
+on(dom.points3dInput, "input", () => {
+  manualStepsDraft = true;
+  show(dom.errorIso, false);
+});
 
-      show(dom.errorIso, false);
-      state.isoSteps = parsed;
-      renderStepsList();
-      fitView(false);
-      drawIso();
-    });
+on(dom.points3dInput, "blur", () => {
+  if (!manualStepsDraft) return;
+  manualStepsDraft = false;
+
+  const parsed = parseSteps(dom.points3dInput.value);
+
+  if (!parsed) {
+    show(dom.errorIso, true);
+    return;
+  }
+
+  show(dom.errorIso, false);
+  state.isoSteps = parsed;
+  renderStepsList();
+  fitView(false);
+  drawIso();
+  markDirty(true);
+});
 
 
     on(dom.resetViewBtn, "click", resetView);

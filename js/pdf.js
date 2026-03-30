@@ -177,6 +177,15 @@ const offsetStartPoint = points3d[offsetStepIndex];
 
 if (!startPoint || !offsetStartPoint) return null;
 
+const dirMap = {
+  E: { dx: 1, dy: 0, dz: 0 },
+  W: { dx: -1, dy: 0, dz: 0 },
+  N: { dx: 0, dy: 1, dz: 0 },
+  S: { dx: 0, dy: -1, dz: 0 },
+  UP: { dx: 0, dy: 0, dz: 1 },
+  DOWN: { dx: 0, dy: 0, dz: -1 }
+};
+
 const dir = dirMap[beforeOffset.dir];
 if (!dir) return null;
 
