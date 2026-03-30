@@ -164,7 +164,7 @@
 function shouldDrawOffsetBaseDim(step) {
   if (!step || step.type !== "OFF") return false;
 
-  if (step.dir === "UP" || step.dir === "DOWN") return false;
+  if (step.baseDir === "UP" || step.baseDir === "DOWN") return false;
 
   return true;
 }

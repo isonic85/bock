@@ -471,7 +471,7 @@ const DEFAULT_VIEW = Object.freeze({
       const baseDir = getLastCardinalDirFromSteps(steps);
       if (!baseDir) return null;
 
-      const step = buildOffsetStep(baseDir, offsetDir, angleDeg, offsetMm)
+      const step = buildOffsetStep(baseDir, offsetDir, angle, offset);
       if (!step) return null;
 
       steps.push(step);
