@@ -101,9 +101,10 @@ isoLenOut: byId("isoLen"),
     offsetMmInput: byId("offsetMm"),
     errorOffset: byId("errorOffset"),
 
-    dimsEnabled: byId("dimsEnabled"),
+  dimsEnabled: byId("dimsEnabled"),
+radiusDimsEnabled: byId("radiusDimsEnabled"),
 
-    radiusEnabled: byId("radiusEnabled"),
+radiusEnabled: byId("radiusEnabled"),
     radiusPanel: byId("radiusPanel"),
     bendRadiusMmInput: byId("bendRadiusMm"),
     errorRadius: byId("errorRadius"),
@@ -139,9 +140,10 @@ const DEFAULT_VIEW = Object.freeze({
     drawingName: "",
     isDirty: false,
     isoSteps: [],
-    showDims: !!dom.dimsEnabled?.checked,
-    showRadius: !!dom.radiusEnabled?.checked,
-    showZeroBend: !!dom.zeroBendEnabled?.checked,
+showDims: !!dom.dimsEnabled?.checked,
+showRadiusDims: !!dom.radiusDimsEnabled?.checked,
+showRadius: !!dom.radiusEnabled?.checked,
+showZeroBend: !!dom.zeroBendEnabled?.checked,
     radiusMm: readNumber(dom.bendRadiusMmInput),
     view: {
       baseScale: 1,
@@ -1808,16 +1810,18 @@ placeCanvasDimCAD(
   }
 }
 
-for (const bend of geometry.bends) {
-  if (bend) {
-    drawArcLabelOnCanvas(
-      ctxIso,
-      bend,
-      toCanvas,
-      centroidCanvas,
-      dimSpread,
-      placedLabels
-    );
+if (state.showRadiusDims) {
+  for (const bend of geometry.bends) {
+    if (bend) {
+      drawArcLabelOnCanvas(
+        ctxIso,
+        bend,
+        toCanvas,
+        centroidCanvas,
+        dimSpread,
+        placedLabels
+      );
+    }
   }
 }
   }
@@ -2061,6 +2065,10 @@ async function addCardinalStep(dir) {
       state.showDims = !!dom.dimsEnabled.checked;
       drawIso();
     });
+    on(dom.radiusDimsEnabled, "change", () => {
+  state.showRadiusDims = !!dom.radiusDimsEnabled.checked;
+  drawIso();
+});
 
      on(dom.radiusEnabled, "change", () => {
       state.showRadius = !!dom.radiusEnabled.checked;
@@ -2353,10 +2361,11 @@ on(dom.points3dInput, "blur", () => {
         offsetAngle: dom.offsetAngleInput?.value ?? "",
         offsetMm: dom.offsetMmInput?.value ?? "",
         offsetCcMm: dom.offsetCcMmInput?.value ?? "",
-        dimsEnabled: !!dom.dimsEnabled?.checked,
-        radiusEnabled: !!dom.radiusEnabled?.checked,
-        bendRadiusMm: dom.bendRadiusMmInput?.value ?? "",
-        zeroBendEnabled: !!dom.zeroBendEnabled?.checked
+    dimsEnabled: !!dom.dimsEnabled?.checked,
+radiusDimsEnabled: !!dom.radiusDimsEnabled?.checked,
+radiusEnabled: !!dom.radiusEnabled?.checked,
+bendRadiusMm: dom.bendRadiusMmInput?.value ?? "",
+zeroBendEnabled: !!dom.zeroBendEnabled?.checked
       },
 
       view: {
@@ -2386,10 +2395,11 @@ on(dom.points3dInput, "blur", () => {
       dom.offsetMmInput.value = snapshot.iso.offsetMm ?? dom.offsetMmInput.value;
       dom.offsetCcMmInput.value = snapshot.iso.offsetCcMm ?? dom.offsetCcMmInput.value;
 
-      dom.dimsEnabled.checked = snapshot.iso.dimsEnabled !== false;
-      dom.radiusEnabled.checked = !!snapshot.iso.radiusEnabled;
-      dom.bendRadiusMmInput.value = snapshot.iso.bendRadiusMm ?? dom.bendRadiusMmInput.value;
-      dom.zeroBendEnabled.checked = !!snapshot.iso.zeroBendEnabled;
+   dom.dimsEnabled.checked = snapshot.iso.dimsEnabled !== false;
+dom.radiusDimsEnabled.checked = snapshot.iso.radiusDimsEnabled !== false;
+dom.radiusEnabled.checked = !!snapshot.iso.radiusEnabled;
+dom.bendRadiusMmInput.value = snapshot.iso.bendRadiusMm ?? dom.bendRadiusMmInput.value;
+dom.zeroBendEnabled.checked = !!snapshot.iso.zeroBendEnabled;
     }
 
     if (snapshot.view) {
@@ -2400,9 +2410,10 @@ on(dom.points3dInput, "blur", () => {
       state.view.panY = Number.isFinite(snapshot.view.panY) ? snapshot.view.panY : 0;
     }
 
-    state.showDims = !!dom.dimsEnabled.checked;
-    state.showRadius = !!dom.radiusEnabled.checked;
-    state.showZeroBend = !!dom.zeroBendEnabled.checked;
+   state.showDims = !!dom.dimsEnabled.checked;
+state.showRadiusDims = !!dom.radiusDimsEnabled.checked;
+state.showRadius = !!dom.radiusEnabled.checked;
+state.showZeroBend = !!dom.zeroBendEnabled.checked;
 
     show(dom.offsetPanel, dom.offsetEnabled.checked);
     show(dom.radiusPanel, dom.radiusEnabled.checked);
@@ -2444,10 +2455,11 @@ function resetAppToNewDrawing() {
   dom.offsetMmInput.value = "100";
   dom.offsetCcMmInput.value = "";
 
-  dom.dimsEnabled.checked = true;
-  dom.radiusEnabled.checked = false;
-  dom.bendRadiusMmInput.value = "56";
-  dom.zeroBendEnabled.checked = false;
+dom.dimsEnabled.checked = true;
+dom.radiusDimsEnabled.checked = true;
+dom.radiusEnabled.checked = false;
+dom.bendRadiusMmInput.value = "56";
+dom.zeroBendEnabled.checked = false;
 
   state.view.pivot = { x: 0, y: 0, z: 0 };
   state.view.pitch = DEFAULT_VIEW.pitch;
@@ -2456,9 +2468,10 @@ function resetAppToNewDrawing() {
   state.view.panX = 0;
   state.view.panY = 0;
 
-  state.showDims = true;
-  state.showRadius = false;
-  state.showZeroBend = false;
+state.showDims = true;
+state.showRadiusDims = true;
+state.showRadius = false;
+state.showZeroBend = false;
 
   show(dom.offsetPanel, false);
   show(dom.radiusPanel, false);
@@ -2708,20 +2721,22 @@ async function saveCurrentDrawing(forceNew = false) {
   function setupDirtyTracking() {
     const mark = () => markDirty(true);
 
-    [
-      dom.height2Input,
-      dom.angle2Input,
-      dom.stepMmInput,
-      dom.points3dInput,
-      dom.offsetEnabled,
-      dom.offsetAngleInput,
-      dom.offsetMmInput,
-      dom.offsetCcMmInput,
-      dom.dimsEnabled,
-      dom.radiusEnabled,
-      dom.bendRadiusMmInput,
-      dom.zeroBendEnabled
-    ].forEach((el) => {
+    
+[
+  dom.height2Input,
+  dom.angle2Input,
+  dom.stepMmInput,
+  dom.points3dInput,
+  dom.offsetEnabled,
+  dom.offsetAngleInput,
+  dom.offsetMmInput,
+  dom.offsetCcMmInput,
+  dom.dimsEnabled,
+  dom.radiusDimsEnabled,
+  dom.radiusEnabled,
+  dom.bendRadiusMmInput,
+  dom.zeroBendEnabled
+].forEach((el) => {
       if (!el) return;
       on(el, "input", mark);
       on(el, "change", mark);
