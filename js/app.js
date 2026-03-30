@@ -2057,7 +2057,6 @@ on(dom.points3dInput, "blur", () => {
   show(dom.errorIso, false);
   state.isoSteps = parsed;
   renderStepsList();
-  fitView(false);
   drawIso();
   markDirty(true);
 });
