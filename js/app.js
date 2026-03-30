@@ -281,18 +281,18 @@ on(document, "focusin", (e) => {
   setTimeout(() => scrollFieldUnderCanvas(target), 180);
 });
 
-function scrollFieldUnderCanvas(target) {
+let activeIsoInput = null;
+let isoScrollTimer = null;
+
+function scrollIsoInputUnderCanvas(target) {
   if (!target || !dom.isoCanvas) return;
   if (!target.closest("#mode-iso3d")) return;
 
-  const field =
-    target.closest(".field, .iso-status-chip, .iso-section, .iso-steps, details") || target;
-
   const canvasRect = dom.isoCanvas.getBoundingClientRect();
-  const fieldRect = field.getBoundingClientRect();
+  const inputRect = target.getBoundingClientRect();
 
   const desiredTop = canvasRect.bottom + 10;
-  const delta = fieldRect.top - desiredTop;
+  const delta = inputRect.top - desiredTop;
 
   if (Math.abs(delta) < 4) return;
 
@@ -303,16 +303,13 @@ function scrollFieldUnderCanvas(target) {
   });
 }
 
-let activeIsoInput = null;
-let isoScrollTimer = null;
-
-function scheduleIsoFieldScroll() {
+function scheduleIsoInputScroll(delay = 0) {
   if (!activeIsoInput) return;
 
   clearTimeout(isoScrollTimer);
   isoScrollTimer = setTimeout(() => {
-    scrollFieldUnderCanvas(activeIsoInput);
-  }, 260);
+    scrollIsoInputUnderCanvas(activeIsoInput);
+  }, delay);
 }
 
 on(document, "focusin", (e) => {
@@ -322,12 +319,11 @@ on(document, "focusin", (e) => {
 
   activeIsoInput = target;
 
-  // Direkt
-  scheduleIsoFieldScroll();
+  scheduleIsoInputScroll(80);
+  scheduleIsoInputScroll(260);
 
-  // En extra gång efter att tangentbordet öppnats klart
   setTimeout(() => {
-    if (activeIsoInput === target) scrollFieldUnderCanvas(target);
+    if (activeIsoInput === target) scrollIsoInputUnderCanvas(target);
   }, 520);
 });
 
@@ -337,8 +333,8 @@ on(document, "focusout", () => {
 });
 
 if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", scheduleIsoFieldScroll);
-  window.visualViewport.addEventListener("scroll", scheduleIsoFieldScroll);
+  window.visualViewport.addEventListener("resize", () => scheduleIsoInputScroll(40));
+  window.visualViewport.addEventListener("scroll", () => scheduleIsoInputScroll(40));
 }
 
   function initTabs() {
