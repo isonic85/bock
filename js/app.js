@@ -437,40 +437,60 @@ const DEFAULT_VIEW = Object.freeze({
   };
 }
 
-  function parseSteps(text) {
-    const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
-    const steps = [];
+ function parseSteps(text) {
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  const steps = [];
 
-    for (const line of lines) {
-      const cleaned = line.replace(/\s+/g, " ").toUpperCase();
+  function getLastCardinalDirFromSteps(localSteps) {
+    for (let i = localSteps.length - 1; i >= 0; i--) {
+      const step = localSteps[i];
+      if (step?.type === "CARD" && dirMap[step.dir]) {
+        return step.dir;
+      }
+    }
+    return null;
+  }
 
-      let m = cleaned.match(/^O\s+([A-Z]+)\s+([+-]?\d+(?:[.,]\d+)?)\s+([+-]?\d+(?:[.,]\d+)?)$/);
-      if (m) {
-        const dir = m[1];
-        const angle = parseFloat(m[2].replace(",", "."));
-        const offset = parseFloat(m[3].replace(",", "."));
+  for (const line of lines) {
+    const cleaned = line.replace(/\s+/g, " ").toUpperCase();
 
-        if (!dirMap[dir] || !Number.isFinite(angle) || !Number.isFinite(offset) || offset <= 0) return null;
-        if (!(Math.abs(angle) > 0 && Math.abs(angle) < 90)) return null;
+    let m = cleaned.match(/^O\s+([A-Z]+)\s+([+-]?\d+(?:[.,]\d+)?)\s+([+-]?\d+(?:[.,]\d+)?)$/);
+    if (m) {
+      const offsetDir = m[1];
+      const angle = parseFloat(m[2].replace(",", "."));
+      const offset = parseFloat(m[3].replace(",", "."));
 
-        const step = buildOffsetStep(dir, angle, offset);
-        if (!step) return null;
-        steps.push(step);
-        continue;
+      if (!dirMap[offsetDir] || !Number.isFinite(angle) || !Number.isFinite(offset) || offset <= 0) {
+        return null;
       }
 
-      m = cleaned.match(/^([A-Z]+)\s*([+-]?\d+(?:[.,]\d+)?)$/);
-      if (!m) return null;
+      if (!(Math.abs(angle) > 0 && Math.abs(angle) < 90)) {
+        return null;
+      }
 
-      const dir = m[1];
-      const mm = parseFloat(m[2].replace(",", "."));
-      if (!dirMap[dir] || !Number.isFinite(mm) || mm <= 0) return null;
+      const baseDir = getLastCardinalDirFromSteps(steps);
+      if (!baseDir) return null;
 
-      steps.push({ type: "CARD", dir, mm });
+      const step = buildOffsetStep(baseDir, offsetDir, angleDeg, offsetMm)
+      if (!step) return null;
+
+      steps.push(step);
+      continue;
     }
 
-    return steps;
+    m = cleaned.match(/^([A-Z]+)\s*([+-]?\d+(?:[.,]\d+)?)$/);
+    if (!m) return null;
+
+    const dir = m[1];
+    const mm = parseFloat(m[2].replace(",", "."));
+
+    if (!dirMap[dir] || !Number.isFinite(mm) || mm <= 0) return null;
+
+    steps.push({ type: "CARD", dir, mm });
   }
+
+  return steps;
+}
 
   function stepsToPoints(steps) {
     let x = 0;
@@ -519,7 +539,7 @@ const DEFAULT_VIEW = Object.freeze({
       const li = document.createElement("li");
      li.textContent = step.type === "CARD"
   ? `${index + 1}. ${step.dir} ${step.mm} mm`
-  : `${index + 1}. OFFSET ${step.dir} v:${step.ang}° off:${step.off}mm → L:${step.mm.toFixed(1)}mm${step.ccWanted ? ` • CC:${step.ccWanted}mm` : ""}${step.ccAfterWanted ? ` • CC efter:${step.ccAfterWanted}mm` : ""}${step.ccAfterBase ? ` • ref:${step.ccAfterBase}mm` : ""}`;
+  : `${index + 1}. OFFSET ${step.dir} från ${step.baseDir} v:${step.ang}° off:${step.off}mm → L:${step.mm.toFixed(1)}mm${step.ccWanted ? ` • CC:${step.ccWanted}mm` : ""}${step.ccAfterWanted ? ` • CC efter:${step.ccAfterWanted}mm` : ""}${step.ccAfterBase ? ` • ref:${step.ccAfterBase}mm` : ""}`;
       dom.stepsListEl.appendChild(li);
     });
         syncIsoMobileSections();
@@ -1308,8 +1328,8 @@ if (!found) {
 function shouldDrawOffsetBaseDim(step) {
   if (!step || step.type !== "OFF") return false;
 
-  // Dölj blått hjälpmått för vertikala offsetar tills vi har en egen logik för dem
-  if (step.dir === "UP" || step.dir === "DOWN") return false;
+  // Dölj blått hjälpmått när själva basriktningen är vertikal
+  if (step.baseDir === "UP" || step.baseDir === "DOWN") return false;
 
   return true;
 }
