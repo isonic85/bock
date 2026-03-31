@@ -16,21 +16,21 @@
 
     <div class="layout" id="layoutRoot">
       <section>
-<div class="mode-tabs">
-  <div class="tabs-left">
-    <button class="tab-btn active" data-mode="heightAngle">90° kick</button>
-    <button class="tab-btn" data-mode="howto">Hur du använder detta</button>
-    <button class="tab-btn" data-mode="iso3d">3D ISO</button>
-  </div>
+        <div class="mode-tabs">
+          <div class="tabs-left">
+            <button class="tab-btn active" data-mode="heightAngle">90° kick</button>
+            <button class="tab-btn" data-mode="howto">Hur du använder detta</button>
+            <button class="tab-btn" data-mode="iso3d">3D ISO</button>
+          </div>
 
-  <div class="unit-switch">
-    <label for="unitSelect">Enhet</label>
-    <select id="unitSelect">
-      <option value="mm">mm</option>
-      <option value="cm">cm</option>
-    </select>
-  </div>
-</div>
+          <div class="unit-switch">
+            <select id="unitSelect">
+              <option value="mm">mm</option>
+              <option value="cm">cm</option>
+            </select>
+          </div>
+        </div>
+
         <div id="mode-heightAngle">
           <div class="field">
             <label for="height2">
@@ -127,40 +127,40 @@
 
         <div id="mode-iso3d" class="hidden">
           <div class="diagram-card iso-canvas-card">
-<div class="diagram-header iso-header">
-  <button type="button" class="mini-btn" id="newDrawingBtn">Ny ritning</button>
+            <div class="diagram-header iso-header">
+              <button type="button" class="mini-btn" id="newDrawingBtn">Ny ritning</button>
 
-  <div class="save-status-chip" id="saveStatusChip">Ej sparad</div>
+              <div class="save-status-chip" id="saveStatusChip">Ej sparad</div>
 
-  <button type="button" class="mini-btn" id="saveDrawingBtn">Spara</button>
-</div>
+              <button type="button" class="mini-btn" id="saveDrawingBtn">Spara</button>
+            </div>
 
             <canvas id="isoCanvas" width="600" height="360" aria-label="3D ISO canvas"></canvas>
 
-<div class="iso-mobile-status">
-  <div class="iso-status-chip iso-step-chip">
-    <span class="k">Steg (mm)</span>
-    <input
-      id="stepMm"
-      type="text"
-      inputmode="decimal"
-      enterkeyhint="done"
-      autocomplete="off"
-      value="100"
-    />
-  </div>
+            <div class="iso-mobile-status">
+              <div class="iso-status-chip iso-step-chip">
+                <span class="k">Steg (mm)</span>
+                <input
+                  id="stepMm"
+                  type="text"
+                  inputmode="decimal"
+                  enterkeyhint="done"
+                  autocomplete="off"
+                  value="100"
+                />
+              </div>
 
-  <div class="iso-status-chip">
-    <span class="k">Längd</span>
-    <span class="v" id="isoLen">–</span>
-  </div>
+              <div class="iso-status-chip">
+                <span class="k">Längd</span>
+                <span class="v" id="isoLen">–</span>
+              </div>
 
-<div class="iso-status-chip iso-undo-chip">
-  <button class="iso-chip-btn" id="undoStepBtn" title="Ta bort sista steget">
-    Ångra
-  </button>
-</div>
-</div>
+              <div class="iso-status-chip iso-undo-chip">
+                <button class="iso-chip-btn" id="undoStepBtn" title="Ta bort sista steget">
+                  Ångra
+                </button>
+              </div>
+            </div>
 
             <div class="iso-btns iso-btns-primary">
               <button class="iso-btn" data-dir="E">E ►</button>
@@ -171,21 +171,15 @@
               <button class="iso-btn" data-dir="DOWN">DOWN ⬇</button>
             </div>
 
-     <div class="view-actions iso-main-actions">
-  <button type="button" class="mini-btn" id="archiveBtn">Arkiv</button>
-
-  <button class="mini-btn" id="resetViewBtn" title="Återställ vy">Återställ</button>
-  <button class="mini-btn" id="clearStepsBtn" title="Rensa alla steg">Rensa ISO</button>
-  <button class="mini-btn" id="exportPdfBtn" title="Exportera som PDF (A4 liggande)">Exportera PDF</button>
-</div>
-
-
-
+            <div class="view-actions iso-main-actions">
+              <button type="button" class="mini-btn" id="archiveBtn">Arkiv</button>
+              <button class="mini-btn" id="resetViewBtn" title="Återställ vy">Återställ</button>
+              <button class="mini-btn" id="clearStepsBtn" title="Rensa alla steg">Rensa ISO</button>
+              <button class="mini-btn" id="exportPdfBtn" title="Exportera som PDF (A4 liggande)">Exportera PDF</button>
+            </div>
           </div>
 
           <div class="iso-quickbar">
-
-
             <div class="toggle-group iso-toggle-grid">
               <label class="offset-toggle m0" for="offsetEnabled">
                 <input id="offsetEnabled" type="checkbox" />
@@ -193,8 +187,10 @@
               </label>
 
               <label class="offset-toggle m0" for="dimsEnabled" title="Visa/dölj mått på canvas">
-                <input id="dimsEnabled" type="checkbox" checked /><span>Visa Mått</span>
-                <input id="radiusDimsEnabled" type="checkbox" checked /><span>Visa Radie</span>
+                <input id="dimsEnabled" type="checkbox" checked />
+                <span>Visa Mått</span>
+                <input id="radiusDimsEnabled" type="checkbox" checked />
+                <span>Visa Radie</span>
               </label>
 
               <label class="offset-toggle m0" for="radiusEnabled" title="Visa böjar med radie">
@@ -460,9 +456,11 @@
       <div class="archive-list" id="archiveList"></div>
     </div>
   </div>
-<footer class="app-footer">
-  ©Copyright 2026 Niklas Persson, v1.0
-</footer>
+
+  <footer class="app-footer">
+    ©Copyright 2026 Niklas Persson, v1.0
+  </footer>
+
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="js/utils.js" defer></script>
   <script src="js/archive.js" defer></script>
