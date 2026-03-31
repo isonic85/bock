@@ -1449,6 +1449,111 @@ placeCanvasDimCAD(
 );
 }
 
+function drawOffsetRiseDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, dimSpread, placedLabels = []) {
+  if (stepIndex < 0) return;
+
+  const step = state.isoSteps[stepIndex];
+  if (!step || step.type !== "OFF") return;
+
+  const offsetStartPoint = points3d[stepIndex];
+  const offsetEndPoint = points3d[stepIndex + 1];
+  if (!offsetStartPoint || !offsetEndPoint) return;
+
+  const projEndPoint = {
+    x: offsetStartPoint.x + (step.proj?.dx || 0),
+    y: offsetStartPoint.y + (step.proj?.dy || 0),
+    z: offsetStartPoint.z + (step.proj?.dz || 0)
+  };
+
+  const a = toCanvas(projectIso(projEndPoint));
+  const b = toCanvas(projectIso(offsetEndPoint));
+
+  if (Math.hypot(b.x - a.x, b.y - a.y) <= 2) return;
+
+  ctx.save();
+  ctx.setLineDash([6, 5]);
+  ctx.strokeStyle = "rgba(56,189,248,.85)";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.stroke();
+  ctx.restore();
+
+  placeCanvasDimCAD(
+    ctx,
+    a,
+    b,
+    fmtMm(step.off, 1),
+    outwardSign(a, b, centroidCanvas),
+    placedLabels,
+    {
+      color: "#38bdf8",
+      extColor: "rgba(56,189,248,.45)",
+      textColor: "#38bdf8",
+      offPx: 12 * dimSpread,
+      minLenPx: 24,
+      lineW: 1.1,
+      extW: 1,
+      dotR: 1.9,
+      dotFill: "#38bdf8",
+      gapPad: 5
+    }
+  );
+}
+
+function drawOffsetProjDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, dimSpread, placedLabels = []) {
+  if (stepIndex < 0) return;
+
+  const step = state.isoSteps[stepIndex];
+  if (!step || step.type !== "OFF") return;
+
+  const offsetStartPoint = points3d[stepIndex];
+  if (!offsetStartPoint) return;
+
+  const projEndPoint = {
+    x: offsetStartPoint.x + (step.proj?.dx || 0),
+    y: offsetStartPoint.y + (step.proj?.dy || 0),
+    z: offsetStartPoint.z + (step.proj?.dz || 0)
+  };
+
+  const a = toCanvas(projectIso(offsetStartPoint));
+  const b = toCanvas(projectIso(projEndPoint));
+
+  if (Math.hypot(b.x - a.x, b.y - a.y) <= 2) return;
+
+  ctx.save();
+  ctx.setLineDash([6, 5]);
+  ctx.strokeStyle = "rgba(56,189,248,.65)";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.stroke();
+  ctx.restore();
+
+  placeCanvasDimCAD(
+    ctx,
+    a,
+    b,
+    fmtMm(step.P, 1),
+    outwardSign(a, b, centroidCanvas),
+    placedLabels,
+    {
+      color: "#38bdf8",
+      extColor: "rgba(56,189,248,.35)",
+      textColor: "#38bdf8",
+      offPx: 10 * dimSpread,
+      minLenPx: 24,
+      lineW: 1.05,
+      extW: 1,
+      dotR: 1.8,
+      dotFill: "#38bdf8",
+      gapPad: 5
+    }
+  );
+}
+
   function describeBendType(steps, vertexIndex) {
     const prev = steps[vertexIndex - 1];
     const curr = steps[vertexIndex];
@@ -1796,9 +1901,29 @@ placeCanvasDimCAD(
 );
     }
 
-  for (let i = 0; i < state.isoSteps.length; i++) {
+for (let i = 0; i < state.isoSteps.length; i++) {
   if (state.isoSteps[i]?.type === "OFF") {
     drawOffsetBaseTotalDim(
+      ctxIso,
+      points3d,
+      i,
+      toCanvas,
+      centroidCanvas,
+      dimSpread,
+      placedLabels
+    );
+
+    drawOffsetProjDim(
+      ctxIso,
+      points3d,
+      i,
+      toCanvas,
+      centroidCanvas,
+      dimSpread,
+      placedLabels
+    );
+
+    drawOffsetRiseDim(
       ctxIso,
       points3d,
       i,
