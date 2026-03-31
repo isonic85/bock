@@ -150,7 +150,7 @@
 
     const labelX = mid.x + nx * 10;
     const labelY = mid.y + ny * 10;
-    const text = `R ${bend.radius.toFixed(1)} / B ${bend.arcLen.toFixed(1)}`;
+   const text = `R ${fmtMm(bend.radius, 1)} / B ${fmtMm(bend.arcLen, 1)}`;
 
     doc.setDrawColor(190, 24, 93);
     doc.setLineWidth(0.18);
@@ -345,7 +345,7 @@ const {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
         doc.text(`Punkter: ${pts3d.length}`, drawX0 + 4, drawY0 + 11);
-        doc.text(`Total längd (3D): ${geometry.totalLen.toFixed(1)} mm`, drawX0 + 4, drawY0 + 15);
+        doc.text(`Total längd (3D): ${fmtMm(geometry.totalLen, 1)}`, drawX0 + 4, drawY0 + 15);
         doc.text(
           `Vy: pitch ${radToDeg(state.view.pitch).toFixed(1)}° / yaw ${radToDeg(state.view.yaw).toFixed(1)}°`,
           drawX0 + 4,

@@ -26,7 +26,7 @@
   } = window.AppUtils;
 
   const dom = {
-
+    
     offsetDetails: byId("offsetDetails"),
     radiusDetails: byId("radiusDetails"),
     manualStepsDetails: byId("manualStepsDetails"),
@@ -81,6 +81,7 @@
     labelHyp: byId("labelHyp"),
     labelAngle: byId("labelAngle"),
 
+    unitSelect: byId("unitSelect"),
     stepMmInput: byId("stepMm"),
     stepButtons: $$(".iso-btn"),
     undoStepBtn: byId("undoStepBtn"),
@@ -136,14 +137,16 @@ const DEFAULT_VIEW = Object.freeze({
 });
 
   const state = {
-        drawingId: null,
+    
+    drawingId: null,
     drawingName: "",
     isDirty: false,
+    unit: "mm",
     isoSteps: [],
-showDims: !!dom.dimsEnabled?.checked,
-showRadiusDims: !!dom.radiusDimsEnabled?.checked,
-showRadius: !!dom.radiusEnabled?.checked,
-showZeroBend: !!dom.zeroBendEnabled?.checked,
+    showDims: !!dom.dimsEnabled?.checked,
+    showRadiusDims: !!dom.radiusDimsEnabled?.checked,
+    showRadius: !!dom.radiusEnabled?.checked,
+    showZeroBend: !!dom.zeroBendEnabled?.checked,
     radiusMm: readNumber(dom.bendRadiusMmInput),
     view: {
       baseScale: 1,
@@ -160,6 +163,8 @@ showZeroBend: !!dom.zeroBendEnabled?.checked,
     dragStart: null,
     pinchStart: null
   };
+
+ window.appState = state;
 
   ["gesturestart", "gesturechange", "gestureend"].forEach((ev) =>
     on(dom.isoCanvas, ev, (e) => e.preventDefault(), { passive: false })
@@ -402,15 +407,15 @@ if (window.visualViewport) {
 
     dom.labelFx.setAttribute("x", (originX + xFoot) / 2);
     dom.labelFx.setAttribute("y", originY + 12);
-    dom.labelFx.textContent = `fx ≈ ${x.toFixed(1)} mm`;
+    dom.labelFx.textContent = `fx ≈ ${fmtMm(x, 1)}`;
 
     dom.labelHeight.setAttribute("x", originX - 4);
     dom.labelHeight.setAttribute("y", (originY + yTop) / 2);
-    dom.labelHeight.textContent = `h ≈ ${y.toFixed(1)} mm`;
+    dom.labelHeight.textContent = `h ≈ ${fmtMm(y, 1)}`;
 
     dom.labelHyp.setAttribute("x", (originX + xTop) / 2);
     dom.labelHyp.setAttribute("y", (originY + yTop) / 2 - 4);
-    dom.labelHyp.textContent = length ? `L ≈ ${length.toFixed(1)} mm` : "L";
+    dom.labelHyp.textContent = length ? `L ≈ ${fmtMm(length, 1)}` : "L";
 
     dom.labelAngle.setAttribute("x", originX + 20);
     dom.labelAngle.setAttribute("y", originY - 8);
@@ -438,8 +443,8 @@ if (window.visualViewport) {
   }
 
   function calculateHeightAngle() {
-    const height = readNumber(dom.height2Input);
-    const angleDeg = readNumber(dom.angle2Input);
+   const height = readLengthInput(dom.height2Input);
+   const angleDeg = readNumber(dom.angle2Input);
 
     if (!Number.isFinite(height) || !Number.isFinite(angleDeg) || height <= 0 || angleDeg <= 0 || angleDeg >= 90) {
       show(dom.errorHeightAngle, true);
@@ -458,6 +463,61 @@ if (window.visualViewport) {
     dom.fxOut2.textContent = fmtMm(fx, 3);
     updateDiagram(fx, height, length, angleDeg);
   }
+
+function unitFactor() {
+  return state.unit === "cm" ? 10 : 1;
+}
+
+function readLengthInput(el) {
+  const v = readNumber(el);
+  if (!Number.isFinite(v)) return NaN;
+  return v * unitFactor();
+}
+
+function toDisplayLength(mm) {
+  if (!Number.isFinite(mm)) return "";
+  return state.unit === "cm"
+    ? String(mm / 10).replace(".", ",")
+    : String(mm).replace(".", ",");
+}
+
+function convertDisplayedInputs(fromUnit, toUnit) {
+  if (fromUnit === toUnit) return;
+
+  const factor = fromUnit === "mm" && toUnit === "cm"
+    ? 0.1
+    : 10;
+
+  const fields = [
+    dom.height2Input,
+    dom.stepMmInput,
+    dom.offsetMmInput,
+    dom.offsetCcMmInput,
+    dom.bendRadiusMmInput
+  ];
+
+  fields.forEach((input) => {
+    if (!input) return;
+    const v = readNumber(input);
+    if (!Number.isFinite(v)) return;
+
+    const converted = v * factor;
+    input.value = String(converted).replace(".", ",");
+  });
+}
+
+function updateUnitLabels() {
+  const unitText = state.unit === "cm" ? "(cm)" : "(mm)";
+
+  document.querySelectorAll("[data-length-unit]").forEach((el) => {
+    el.textContent = unitText;
+  });
+
+  const stepLabel = document.querySelector(".iso-step-chip .k");
+  if (stepLabel) {
+    stepLabel.textContent = `Steg (${state.unit})`;
+  }
+}
 
   function initHeightAngle() {
     on(dom.calcHeightAngleBtn, "click", (e) => {
@@ -543,7 +603,8 @@ if (window.visualViewport) {
     if (m) {
       const offsetDir = m[1];
       const angle = parseFloat(m[2].replace(",", "."));
-      const offset = parseFloat(m[3].replace(",", "."));
+      const offsetRaw = parseFloat(m[3].replace(",", "."));
+const offset = Number.isFinite(offsetRaw) ? offsetRaw * unitFactor() : NaN;
 
       if (!dirMap[offsetDir] || !Number.isFinite(angle) || !Number.isFinite(offset) || offset <= 0) {
         return null;
@@ -567,7 +628,8 @@ if (window.visualViewport) {
     if (!m) return null;
 
     const dir = m[1];
-    const mm = parseFloat(m[2].replace(",", "."));
+   const mmRaw = parseFloat(m[2].replace(",", "."));
+const mm = Number.isFinite(mmRaw) ? mmRaw * unitFactor() : NaN;
 
     if (!dirMap[dir] || !Number.isFinite(mm) || mm <= 0) return null;
 
@@ -603,8 +665,8 @@ if (window.visualViewport) {
   function syncTextareaFromSteps() {
     dom.points3dInput.value = state.isoSteps.map((step) =>
       step.type === "CARD"
-        ? `${step.dir} ${step.mm}`
-        : `O ${step.dir} ${step.ang} ${step.off}`
+        ? `${step.dir} ${toDisplayLength(step.mm)}`
+        : `O ${step.dir} ${step.ang} ${toDisplayLength(step.off)}`
     ).join("\n");
   }
 
@@ -623,16 +685,16 @@ if (window.visualViewport) {
     state.isoSteps.forEach((step, index) => {
       const li = document.createElement("li");
      li.textContent = step.type === "CARD"
-  ? `${index + 1}. ${step.dir} ${step.mm} mm`
-  : `${index + 1}. OFFSET ${step.dir} från ${step.baseDir} v:${step.ang}° off:${step.off}mm → L:${step.mm.toFixed(1)}mm${step.ccWanted ? ` • CC:${step.ccWanted}mm` : ""}${step.ccAfterWanted ? ` • CC efter:${step.ccAfterWanted}mm` : ""}${step.ccAfterBase ? ` • ref:${step.ccAfterBase}mm` : ""}`;
+  ? `${index + 1}. ${step.dir} ${fmtMm(step.mm, 1)}`
+  : `${index + 1}. OFFSET ${step.dir} från ${step.baseDir} v:${step.ang}° off:${fmtMm(step.off, 1)} → L:${fmtMm(step.mm, 1)}${step.ccWanted ? ` • CC:${fmtMm(step.ccWanted, 1)}` : ""}${step.ccAfterWanted ? ` • CC efter:${fmtMm(step.ccAfterWanted, 1)}` : ""}${step.ccAfterBase ? ` • ref:${fmtMm(step.ccAfterBase, 1)}` : ""}`;
       dom.stepsListEl.appendChild(li);
     });
         syncIsoMobileSections();
   }
 
   function validateOffsetInputs() {
-    const ang = readNumber(dom.offsetAngleInput);
-    const off = readNumber(dom.offsetMmInput);
+const ang = readNumber(dom.offsetAngleInput);
+const off = readLengthInput(dom.offsetMmInput);
     return Number.isFinite(ang) && Number.isFinite(off) && off > 0 && Math.abs(ang) > 0 && Math.abs(ang) < 90
       ? { ang, off }
       : null;
@@ -640,7 +702,7 @@ if (window.visualViewport) {
 
   function validateRadiusInput() {
     if (!dom.radiusEnabled.checked) return { enabled: false, radius: 0 };
-    const radius = readNumber(dom.bendRadiusMmInput);
+    const radius = readLengthInput(dom.bendRadiusMmInput);
     return Number.isFinite(radius) && radius > 0 ? { enabled: true, radius } : null;
   }
 
@@ -1124,11 +1186,11 @@ function drawEmptyIsoGrid(ctx, toCanvas, extent = 2000, step = 50) {
     }, minor, 0.06, 0.14);
   }
 
-  function getRadiusSettings() {
-    state.showRadius = !!dom.radiusEnabled.checked;
-    state.radiusMm = readNumber(dom.bendRadiusMmInput);
-    return validateRadiusInput();
-  }
+function getRadiusSettings() {
+  state.showRadius = !!dom.radiusEnabled.checked;
+  state.radiusMm = readLengthInput(dom.bendRadiusMmInput);
+  return validateRadiusInput();
+}
 
   function buildRoundedGeometry(points3d) {
     const radiusConfig = getRadiusSettings();
@@ -1362,7 +1424,7 @@ function resetView() {
     nx *= sign;
     ny *= sign;
 
-  const text = `R ${bend.radius.toFixed(1)} • B ${bend.arcLen.toFixed(1)} mm`;
+const text = `R ${fmtMm(bend.radius, 1)} • B ${fmtMm(bend.arcLen, 1)}`;
 
 let labelX = null;
 let labelY = null;
@@ -1695,8 +1757,8 @@ function drawOffsetProjDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, d
         <td class="num">${row.no}</td>
         <td>${row.type}</td>
         <td class="num">${row.angleDeg.toFixed(1)}°</td>
-        <td class="num">${row.delta.toFixed(1)} mm</td>
-        <td class="num">${row.cumulative.toFixed(1)} mm</td>
+      <td class="num">${fmtMm(row.delta, 1)}</td>
+<td class="num">${fmtMm(row.cumulative, 1)}</td>
       `;
       dom.zeroBendBody.appendChild(tr);
     }
@@ -1820,7 +1882,7 @@ const placedLabels = [];
     ctxIso.lineJoin = "round";
 
     ctxIso.strokeStyle = "#22c55e";
-    ctxIso.lineWidth = 2;
+    ctxIso.lineWidth = 2.5;
     for (const seg of geometry.segments) {
       const a = toCanvas(projectIso(seg.start));
       const b = toCanvas(projectIso(seg.end));
@@ -1832,7 +1894,7 @@ const placedLabels = [];
     }
 
     ctxIso.strokeStyle = "#facc15";
-    ctxIso.lineWidth = 2;
+    ctxIso.lineWidth = 2.5;
     for (const bend of geometry.bends) {
       if (!bend) continue;
       const pts = sampleBendArc3d(bend, Math.max(32, Math.ceil(radToDeg(bend.arcAngle) / 2)));
@@ -2075,7 +2137,7 @@ function getCcAfterOffsetCandidate(nextDir) {
   };
 }
 async function addCardinalStep(dir) {
-  let mm = readNumber(dom.stepMmInput);
+  let mm = readLengthInput(dom.stepMmInput);
   if (!Number.isFinite(mm) || mm <= 0) return;
 
   const ccCandidate = getCcAfterOffsetCandidate(dir);
@@ -2084,8 +2146,9 @@ async function addCardinalStep(dir) {
     const wantsCc = await openConfirmModal("Vill du ange C.C mått för sträckan efter offseten?");
 
     if (wantsCc) {
-      const rawCc = window.prompt("Ange önskat C.C mått (mm):", "");
-      const ccWanted = rawCc ? parseFloat(String(rawCc).replace(",", ".")) : NaN;
+      const rawCc = window.prompt(`Ange önskat C.C mått (${state.unit}):`, "");
+      const ccWantedRaw = rawCc ? parseFloat(String(rawCc).replace(",", ".")) : NaN;
+      const ccWanted = Number.isFinite(ccWantedRaw) ? ccWantedRaw * unitFactor() : NaN;
 
       if (!Number.isFinite(ccWanted) || ccWanted <= 0) {
         dom.errorOffset.textContent = "C.C mått måste vara större än 0.";
@@ -2146,7 +2209,8 @@ async function addCardinalStep(dir) {
   const hasCc = rawCc !== "";
 
   if (hasCc) {
-    const ccWanted = parseFloat(rawCc.replace(",", "."));
+    const ccWantedRaw = parseFloat(rawCc.replace(",", "."));
+    const ccWanted = Number.isFinite(ccWantedRaw) ? ccWantedRaw * unitFactor() : NaN;
 
     if (!Number.isFinite(ccWanted) || ccWanted <= 0) {
       dom.errorOffset.textContent = "C.C mått måste vara större än 0.";
@@ -2180,6 +2244,22 @@ async function addCardinalStep(dir) {
 }
 
   function initIsoControls() {
+
+on(dom.unitSelect, "change", () => {
+  const oldUnit = state.unit;
+  const newUnit = dom.unitSelect.value === "cm" ? "cm" : "mm";
+
+  convertDisplayedInputs(oldUnit, newUnit);
+  state.unit = newUnit;
+  window.appState = state;
+
+  updateUnitLabels();
+  calculateHeightAngle();
+  renderStepsList();
+  drawIso();
+  markDirty(true);
+});
+
     on(dom.offsetEnabled, "change", () => {
       show(dom.offsetPanel, dom.offsetEnabled.checked);
       show(dom.errorOffset, false);
@@ -2212,7 +2292,7 @@ async function addCardinalStep(dir) {
     });
 
     on(dom.bendRadiusMmInput, "input", () => {
-      state.radiusMm = readNumber(dom.bendRadiusMmInput);
+      state.radiusMm = readLengthInput(dom.bendRadiusMmInput);
       fitView(false);
       drawIso();
     });
@@ -2473,7 +2553,7 @@ on(dom.points3dInput, "blur", () => {
   function getAppSnapshot() {
     return {
       mode: dom.modeButtons.find((btn) => btn.classList.contains("active"))?.dataset.mode || "heightAngle",
-
+      unit: state.unit,
       heightAngle: {
         height: dom.height2Input?.value ?? "",
         angle: dom.angle2Input?.value ?? ""
@@ -2503,8 +2583,16 @@ zeroBendEnabled: !!dom.zeroBendEnabled?.checked
     };
   }
 
-  function applyAppSnapshot(snapshot) {
-    if (!snapshot) return;
+ function applyAppSnapshot(snapshot) {
+  if (!snapshot) return;
+
+  state.unit = snapshot.unit || "mm";
+  window.appState = state;
+
+  if (dom.unitSelect) {
+    dom.unitSelect.value = state.unit;
+  }
+  updateUnitLabels();
 
     if (snapshot.heightAngle) {
       dom.height2Input.value = snapshot.heightAngle.height ?? dom.height2Input.value;
@@ -2562,6 +2650,15 @@ state.showZeroBend = !!dom.zeroBendEnabled.checked;
   }
 
 function resetAppToNewDrawing() {
+
+state.unit = "mm";
+window.appState = state;
+
+if (dom.unitSelect) {
+  dom.unitSelect.value = "mm";
+}
+updateUnitLabels();
+
   const activeMode =
     dom.modeButtons.find((btn) => btn.classList.contains("active"))?.dataset.mode || "heightAngle";
 
@@ -2930,14 +3027,15 @@ function bindNumericInputUx(input, { restoreOnEmpty = true } = {}) {
 }
 
 function initMobileNumberInputs() {
-  [
-    dom.stepMmInput,
-    dom.offsetAngleInput,
-    dom.offsetMmInput,
-    dom.offsetCcMmInput,
-    dom.bendRadiusMmInput,
-    dom.angle2Input
-  ].forEach((input) => bindNumericInputUx(input));
+[
+  dom.height2Input,
+  dom.stepMmInput,
+  dom.offsetAngleInput,
+  dom.offsetMmInput,
+  dom.offsetCcMmInput,
+  dom.bendRadiusMmInput,
+  dom.angle2Input
+].forEach((input) => bindNumericInputUx(input));
 }
 
 function setDetailsOpen(el, open) {
@@ -2996,7 +3094,12 @@ const exportIsoPdf = window.PdfModule.createExportIsoPdf({
     show(dom.zeroBendPanel, dom.zeroBendEnabled.checked);
     fitView(false);
     drawIso();
-        syncIsoMobileSections();
+    syncIsoMobileSections();
+    if (dom.unitSelect) {
+  dom.unitSelect.value = state.unit;
+}
+updateUnitLabels();
+window.appState = state;
     updateSaveStatusChip();
   }
 

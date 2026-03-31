@@ -16,17 +16,26 @@
 
     <div class="layout" id="layoutRoot">
       <section>
-        <div class="mode-tabs">
-          <button class="tab-btn active" data-mode="heightAngle">90° kick</button>
-          <button class="tab-btn" data-mode="howto">Hur du använder detta</button>
-          <button class="tab-btn" data-mode="iso3d">3D ISO</button>
-        </div>
+<div class="mode-tabs">
+  <div class="tabs-left">
+    <button class="tab-btn active" data-mode="heightAngle">90° kick</button>
+    <button class="tab-btn" data-mode="howto">Hur du använder detta</button>
+    <button class="tab-btn" data-mode="iso3d">3D ISO</button>
+  </div>
 
+  <div class="unit-switch">
+    <label for="unitSelect">Enhet</label>
+    <select id="unitSelect">
+      <option value="mm">mm</option>
+      <option value="cm">cm</option>
+    </select>
+  </div>
+</div>
         <div id="mode-heightAngle">
           <div class="field">
             <label for="height2">
               Höjd från referenslinje (offset)
-              <span class="unit">(mm)</span>
+              <span class="unit" data-length-unit>(mm)</span>
             </label>
             <input
               id="height2"
@@ -219,7 +228,7 @@
                   </div>
 
                   <div class="field mb0">
-                    <label for="offsetMm">Offset <span class="unit">(mm)</span></label>
+                    <label for="offsetMm">Offset <span class="unit" data-length-unit>(mm)</span></label>
                     <input
                       id="offsetMm"
                       type="text"
@@ -233,7 +242,7 @@
                 </div>
 
                 <div class="field" style="margin-top:8px;">
-                  <label for="offsetCcMm">C.C mått <span class="unit">(mm)</span></label>
+                  <label for="offsetCcMm">C.C mått <span class="unit" data-length-unit>(mm)</span></label>
                   <input
                     id="offsetCcMm"
                     type="text"
@@ -260,7 +269,7 @@
               <div id="radiusPanel" class="hidden">
                 <div class="offset-grid">
                   <div class="field mb0">
-                    <label for="bendRadiusMm">Böjradie <span class="unit">(mm)</span></label>
+                    <label for="bendRadiusMm">Böjradie <span class="unit" data-length-unit>(mm)</span></label>
                     <input
                       id="bendRadiusMm"
                       type="text"

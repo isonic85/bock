@@ -9,7 +9,16 @@
   const degToRad = (deg) => deg * Math.PI / 180;
   const radToDeg = (rad) => rad * 180 / Math.PI;
   const fmt = (v, unit = "", d = 1) => Number.isFinite(v) ? `${v.toFixed(d)}${unit}` : "–";
-  const fmtMm = (v, d = 1) => fmt(v, " mm", d);
+  const fmtMm = (v, d = 1) => {
+  const unit = window.appState?.unit || "mm";
+  if (!Number.isFinite(v)) return "–";
+
+  if (unit === "cm") {
+    return `${(v / 10).toFixed(d)} cm`;
+  }
+
+  return `${v.toFixed(d)} mm`;
+};
   const fmtDeg = (v, d = 1) => fmt(v, "°", d);
 
   const v3 = (x = 0, y = 0, z = 0) => ({ x, y, z });

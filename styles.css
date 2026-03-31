@@ -84,17 +84,63 @@ h1 {
 .layout > section { width: 100%; min-width: 0; }
 
 .mode-tabs {
+  position: relative; /* viktigt */
   display: flex;
+  align-items: center;
   width: 100%;
-  max-width: 100%;
   margin-bottom: 12px;
-  padding: 3px;
-  gap: 0;
-  overflow-x: auto;
-  justify-content: center;
+  padding: 3px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   background: var(--bg-input);
+}
+.tabs-left {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+}
+.mode-tabs {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-input);
+}
+
+.tabs-left {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+}
+
+.unit-switch {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unit-switch label {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+.unit-switch select {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-size: 0.85rem;
 }
 
 .tab-btn {
@@ -813,6 +859,21 @@ svg {
   margin-top: 10px;
 }
 
+.unit-switch label {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+.unit-switch select {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-size: 0.85rem;
+}
+
 .iso-status-chip {
   border: 1px solid var(--border-soft);
   border-radius: 12px;
@@ -1042,4 +1103,10 @@ svg {
   );
   backdrop-filter: blur(6px);
   z-index: 50;
+}
+
+.unit-switch select {
+  padding: 4px 8px;
+  border-radius: 999px;
+  
 }
