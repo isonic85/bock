@@ -5,6 +5,26 @@
   const on = (el, ev, fn, opts) => el && el.addEventListener(ev, fn, opts);
   const show = (el, visible) => el && el.classList.toggle("hidden", !visible);
   const readNumber = (el) => el ? parseFloat(String(el.value).replace(",", ".").trim()) : NaN;
+  const readExpressionNumber = (el) => {
+  if (!el) return NaN;
+
+  const raw = String(el.value ?? "").trim();
+  if (!raw) return NaN;
+
+  const normalized = raw
+    .replace(/\s+/g, "")
+    .replace(/,/g, ".")
+    .replace(/mm|cm/gi, "");
+
+  if (!/^[0-9+\-*/().]+$/.test(normalized)) return NaN;
+
+  try {
+    const result = Function(`"use strict"; return (${normalized});`)();
+    return Number.isFinite(result) ? result : NaN;
+  } catch {
+    return NaN;
+  }
+};
   const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
   const degToRad = (deg) => deg * Math.PI / 180;
   const radToDeg = (rad) => rad * 180 / Math.PI;
@@ -131,6 +151,7 @@
     angleBetween3,
     rotateAroundAxis,
     outwardSign,
-    getModelPivot
+    getModelPivot,
+    readExpressionNumber
   };
 })();

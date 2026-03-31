@@ -6,6 +6,7 @@
     on,
     show,
     readNumber,
+readExpressionNumber,
     clamp,
     degToRad,
     radToDeg,
@@ -469,7 +470,7 @@ function unitFactor() {
 }
 
 function readLengthInput(el) {
-  const v = readNumber(el);
+  const v = readExpressionNumber(el);
   if (!Number.isFinite(v)) return NaN;
   return v * unitFactor();
 }
@@ -479,6 +480,15 @@ function toDisplayLength(mm) {
   return state.unit === "cm"
     ? String(mm / 10).replace(".", ",")
     : String(mm).replace(".", ",");
+}
+
+function normalizeLengthExpressionInput(input) {
+  if (!input) return;
+
+  const mm = readLengthInput(input);
+  if (!Number.isFinite(mm)) return;
+
+  input.value = toDisplayLength(mm);
 }
 
 function convertDisplayedInputs(fromUnit, toUnit) {
@@ -2297,7 +2307,13 @@ on(dom.unitSelect, "change", () => {
       drawIso();
     });
 
-  dom.stepButtons.forEach((btn) => on(btn, "click", async () => {
+dom.stepButtons.forEach((btn) => on(btn, "click", async () => {
+  normalizeLengthExpressionInput(dom.stepMmInput);
+  normalizeLengthExpressionInput(dom.offsetMmInput);
+  normalizeLengthExpressionInput(dom.offsetCcMmInput);
+  normalizeLengthExpressionInput(dom.bendRadiusMmInput);
+  normalizeLengthExpressionInput(dom.height2Input);
+
   const dir = btn.dataset.dir;
   if (dom.offsetEnabled.checked) {
     addOffsetStep(dir);
@@ -2984,19 +3000,26 @@ async function saveCurrentDrawing(forceNew = false) {
     });
   }
 
-function bindNumericInputUx(input, { restoreOnEmpty = true } = {}) {
+function bindNumericInputUx(input, { restoreOnEmpty = true, allowExpression = false } = {}) {
   if (!input) return;
 
   const sanitize = () => {
     const original = String(input.value ?? "");
-    let cleaned = original.replace(/\./g, ",");      // punkt blir komma
-    cleaned = cleaned.replace(/[^0-9,]/g, "");       // tillåt bara siffror + komma
+    let cleaned = original.replace(/\./g, ",");
 
-    const firstComma = cleaned.indexOf(",");
-    if (firstComma !== -1) {
-      cleaned =
-        cleaned.slice(0, firstComma + 1) +
-        cleaned.slice(firstComma + 1).replace(/,/g, "");
+    if (allowExpression) {
+      cleaned = cleaned.replace(/[^0-9,+\-*/()]/g, "");
+    } else {
+      cleaned = cleaned.replace(/[^0-9,]/g, "");
+    }
+
+    if (!allowExpression) {
+      const firstComma = cleaned.indexOf(",");
+      if (firstComma !== -1) {
+        cleaned =
+          cleaned.slice(0, firstComma + 1) +
+          cleaned.slice(firstComma + 1).replace(/,/g, "");
+      }
     }
 
     if (cleaned !== original) {
@@ -3006,7 +3029,6 @@ function bindNumericInputUx(input, { restoreOnEmpty = true } = {}) {
 
   on(input, "focus", () => {
     input.dataset.prevValue = input.value ?? "";
-    input.value = "";
   });
 
   on(input, "input", sanitize);
@@ -3016,26 +3038,31 @@ function bindNumericInputUx(input, { restoreOnEmpty = true } = {}) {
 
     if (!input.value.trim() && restoreOnEmpty) {
       input.value = input.dataset.prevValue ?? "";
+      return;
+    }
+
+    if (allowExpression) {
+      normalizeLengthExpressionInput(input);
     }
   });
 
   on(input, "keydown", (e) => {
     if (e.key === "Enter") {
+      e.preventDefault();
       input.blur();
     }
   });
 }
 
 function initMobileNumberInputs() {
-[
-  dom.height2Input,
-  dom.stepMmInput,
-  dom.offsetAngleInput,
-  dom.offsetMmInput,
-  dom.offsetCcMmInput,
-  dom.bendRadiusMmInput,
-  dom.angle2Input
-].forEach((input) => bindNumericInputUx(input));
+  bindNumericInputUx(dom.height2Input, { allowExpression: true });
+  bindNumericInputUx(dom.stepMmInput, { allowExpression: true });
+  bindNumericInputUx(dom.offsetMmInput, { allowExpression: true });
+  bindNumericInputUx(dom.offsetCcMmInput, { allowExpression: true });
+  bindNumericInputUx(dom.bendRadiusMmInput, { allowExpression: true });
+
+  bindNumericInputUx(dom.offsetAngleInput);
+  bindNumericInputUx(dom.angle2Input);
 }
 
 function setDetailsOpen(el, open) {
