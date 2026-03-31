@@ -1820,7 +1820,7 @@ const placedLabels = [];
     ctxIso.lineJoin = "round";
 
     ctxIso.strokeStyle = "#22c55e";
-    ctxIso.lineWidth = 4;
+    ctxIso.lineWidth = 2;
     for (const seg of geometry.segments) {
       const a = toCanvas(projectIso(seg.start));
       const b = toCanvas(projectIso(seg.end));
@@ -1832,7 +1832,7 @@ const placedLabels = [];
     }
 
     ctxIso.strokeStyle = "#facc15";
-    ctxIso.lineWidth = 4;
+    ctxIso.lineWidth = 2;
     for (const bend of geometry.bends) {
       if (!bend) continue;
       const pts = sampleBendArc3d(bend, Math.max(32, Math.ceil(radToDeg(bend.arcAngle) / 2)));
