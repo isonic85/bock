@@ -1112,12 +1112,6 @@ svg {
     0 0 0 1px rgba(148, 163, 184, 0.12);
 }
 
-.custom-numpad-top {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 8px;
-}
-
 .custom-numpad-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

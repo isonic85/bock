@@ -143,7 +143,7 @@ const DEFAULT_VIEW = Object.freeze({
   const state = {
 
     numpadTarget: null,
-    
+    numpadReplaceOnNextInput: false,
     drawingId: null,
     drawingName: "",
     isDirty: false,
@@ -274,7 +274,11 @@ function keepIsoInputVisible(target) {
   const viewportHeight = vv ? vv.height : window.innerHeight;
 
   const topSafe = viewportTop + 12;
-  const bottomSafe = viewportTop + viewportHeight - 16;
+  const customPadHeight = state.numpadTarget && !dom.customNumpad.classList.contains("hidden")
+  ? dom.customNumpad.getBoundingClientRect().height
+  : 0;
+
+const bottomSafe = viewportTop + viewportHeight - customPadHeight - 12;
 
   let delta = 0;
 
@@ -508,12 +512,28 @@ function isCustomNumpadField(input) {
 function showCustomNumpad(input) {
   if (!dom.customNumpad || !isCustomNumpadField(input) || window.innerWidth > 520) return;
 
+  if (state.numpadTarget && state.numpadTarget !== input) {
+    state.numpadTarget.removeAttribute("readonly");
+    normalizeLengthExpressionInput(state.numpadTarget);
+  }
+
   state.numpadTarget = input;
+  state.numpadReplaceOnNextInput = true;
+
   input.setAttribute("readonly", "readonly");
+  input.setSelectionRange?.(0, input.value.length);
 
   dom.customNumpad.classList.remove("hidden");
   dom.customNumpad.setAttribute("aria-hidden", "false");
   document.body.classList.add("numpad-open");
+
+  activeIsoInput = input;
+
+  requestAnimationFrame(() => {
+    input.scrollIntoView({ block: "center", behavior: "smooth" });
+    setTimeout(() => keepIsoInputVisible(input), 80);
+    setTimeout(() => keepIsoInputVisible(input), 220);
+  });
 }
 
 function hideCustomNumpad() {
@@ -529,11 +549,21 @@ function hideCustomNumpad() {
   }
 
   state.numpadTarget = null;
+  state.numpadReplaceOnNextInput = false;
 }
 
 function insertIntoFocusedLengthInput(text) {
   const input = state.numpadTarget;
   if (!input) return;
+
+  if (state.numpadReplaceOnNextInput) {
+    input.value = text;
+    state.numpadReplaceOnNextInput = false;
+    input.setSelectionRange?.(input.value.length, input.value.length);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    keepIsoInputVisible(input);
+    return;
+  }
 
   const start = input.selectionStart ?? input.value.length;
   const end = input.selectionEnd ?? input.value.length;
@@ -546,11 +576,20 @@ function insertIntoFocusedLengthInput(text) {
   const pos = start + text.length;
   input.setSelectionRange?.(pos, pos);
   input.dispatchEvent(new Event("input", { bubbles: true }));
+  keepIsoInputVisible(input);
 }
 
 function backspaceFocusedLengthInput() {
   const input = state.numpadTarget;
   if (!input) return;
+
+  if (state.numpadReplaceOnNextInput) {
+    input.value = "";
+    state.numpadReplaceOnNextInput = false;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    keepIsoInputVisible(input);
+    return;
+  }
 
   const start = input.selectionStart ?? input.value.length;
   const end = input.selectionEnd ?? input.value.length;
@@ -564,6 +603,7 @@ function backspaceFocusedLengthInput() {
   }
 
   input.dispatchEvent(new Event("input", { bubbles: true }));
+  keepIsoInputVisible(input);
 }
 function convertDisplayedInputs(fromUnit, toUnit) {
   if (fromUnit === toUnit) return;
@@ -2388,6 +2428,8 @@ dom.stepButtons.forEach((btn) => on(btn, "click", async () => {
   normalizeLengthExpressionInput(dom.bendRadiusMmInput);
   normalizeLengthExpressionInput(dom.height2Input);
 
+  hideCustomNumpad();
+
   const dir = btn.dataset.dir;
   if (dom.offsetEnabled.checked) {
     addOffsetStep(dir);
@@ -3175,21 +3217,10 @@ function initMobileNumberInputs() {
   expressionFields.forEach((input) => {
     bindNumericInputUx(input, { allowExpression: true });
 
-    on(input, "focus", () => {
-      if (window.innerWidth <= 520) {
-        input.blur();
-        setTimeout(() => {
-          showCustomNumpad(input);
-          input.focus({ preventScroll: true });
-        }, 0);
-      }
-    });
-
     on(input, "pointerdown", (e) => {
       if (window.innerWidth > 520) return;
       e.preventDefault();
       showCustomNumpad(input);
-      input.focus({ preventScroll: true });
     });
   });
 
