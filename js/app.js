@@ -27,6 +27,9 @@ readExpressionNumber,
   } = window.AppUtils;
 
   const dom = {
+
+    customNumpad: byId("customNumpad"),
+    numpadButtons: $$("[data-np-value], [data-np-action]"),
     
     offsetDetails: byId("offsetDetails"),
     radiusDetails: byId("radiusDetails"),
@@ -138,6 +141,8 @@ const DEFAULT_VIEW = Object.freeze({
 });
 
   const state = {
+
+    numpadTarget: null,
     
     drawingId: null,
     drawingName: "",
@@ -490,7 +495,76 @@ function normalizeLengthExpressionInput(input) {
 
   input.value = toDisplayLength(mm);
 }
+function isCustomNumpadField(input) {
+  return [
+    dom.height2Input,
+    dom.stepMmInput,
+    dom.offsetMmInput,
+    dom.offsetCcMmInput,
+    dom.bendRadiusMmInput
+  ].includes(input);
+}
 
+function showCustomNumpad(input) {
+  if (!dom.customNumpad || !isCustomNumpadField(input) || window.innerWidth > 520) return;
+
+  state.numpadTarget = input;
+  input.setAttribute("readonly", "readonly");
+
+  dom.customNumpad.classList.remove("hidden");
+  dom.customNumpad.setAttribute("aria-hidden", "false");
+  document.body.classList.add("numpad-open");
+}
+
+function hideCustomNumpad() {
+  if (!dom.customNumpad) return;
+
+  dom.customNumpad.classList.add("hidden");
+  dom.customNumpad.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("numpad-open");
+
+  if (state.numpadTarget) {
+    state.numpadTarget.removeAttribute("readonly");
+    normalizeLengthExpressionInput(state.numpadTarget);
+  }
+
+  state.numpadTarget = null;
+}
+
+function insertIntoFocusedLengthInput(text) {
+  const input = state.numpadTarget;
+  if (!input) return;
+
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? input.value.length;
+
+  const before = input.value.slice(0, start);
+  const after = input.value.slice(end);
+
+  input.value = `${before}${text}${after}`;
+
+  const pos = start + text.length;
+  input.setSelectionRange?.(pos, pos);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function backspaceFocusedLengthInput() {
+  const input = state.numpadTarget;
+  if (!input) return;
+
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? input.value.length;
+
+  if (start !== end) {
+    input.value = input.value.slice(0, start) + input.value.slice(end);
+    input.setSelectionRange?.(start, start);
+  } else if (start > 0) {
+    input.value = input.value.slice(0, start - 1) + input.value.slice(end);
+    input.setSelectionRange?.(start - 1, start - 1);
+  }
+
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
 function convertDisplayedInputs(fromUnit, toUnit) {
   if (fromUnit === toUnit) return;
 
@@ -3054,12 +3128,70 @@ function bindNumericInputUx(input, { restoreOnEmpty = true, allowExpression = fa
   });
 }
 
+function initCustomNumpad() {
+  dom.numpadButtons.forEach((btn) => {
+    on(btn, "click", () => {
+      const action = btn.dataset.npAction;
+      const value = btn.dataset.npValue;
+
+      if (action === "close") {
+        hideCustomNumpad();
+        return;
+      }
+
+      if (action === "backspace") {
+        backspaceFocusedLengthInput();
+        return;
+      }
+
+      if (value) {
+        insertIntoFocusedLengthInput(value);
+      }
+    });
+  });
+
+  on(document, "click", (e) => {
+    if (!state.numpadTarget || !dom.customNumpad) return;
+
+    const target = e.target;
+    const insidePad = dom.customNumpad.contains(target);
+    const sameInput = target === state.numpadTarget;
+
+    if (!insidePad && !sameInput) {
+      hideCustomNumpad();
+    }
+  });
+}
+
 function initMobileNumberInputs() {
-  bindNumericInputUx(dom.height2Input, { allowExpression: true });
-  bindNumericInputUx(dom.stepMmInput, { allowExpression: true });
-  bindNumericInputUx(dom.offsetMmInput, { allowExpression: true });
-  bindNumericInputUx(dom.offsetCcMmInput, { allowExpression: true });
-  bindNumericInputUx(dom.bendRadiusMmInput, { allowExpression: true });
+  const expressionFields = [
+    dom.height2Input,
+    dom.stepMmInput,
+    dom.offsetMmInput,
+    dom.offsetCcMmInput,
+    dom.bendRadiusMmInput
+  ];
+
+  expressionFields.forEach((input) => {
+    bindNumericInputUx(input, { allowExpression: true });
+
+    on(input, "focus", () => {
+      if (window.innerWidth <= 520) {
+        input.blur();
+        setTimeout(() => {
+          showCustomNumpad(input);
+          input.focus({ preventScroll: true });
+        }, 0);
+      }
+    });
+
+    on(input, "pointerdown", (e) => {
+      if (window.innerWidth > 520) return;
+      e.preventDefault();
+      showCustomNumpad(input);
+      input.focus({ preventScroll: true });
+    });
+  });
 
   bindNumericInputUx(dom.offsetAngleInput);
   bindNumericInputUx(dom.angle2Input);
@@ -3088,12 +3220,14 @@ function syncIsoMobileSections() {
 }
 
 function initApp() {
+  
   initTabs();
   initHeightAngle();
   initIsoControls();
   initCanvasInteractions();
   initArchiveUi();
   initMobileNumberInputs();
+  initCustomNumpad();
   setupDirtyTracking();
 
 const exportIsoPdf = window.PdfModule.createExportIsoPdf({
