@@ -11,29 +11,28 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <main class="app">
-    <div class="top-bar">
-  <h1>Rörbockning med Farbror Niklas</h1>
+<main class="app">
+  <div class="top-bar">
+    <h1>Rörbockning med Farbror Niklas</h1>
+
+    <div class="mode-tabs">
+      <div class="tabs-left">
+        <button class="tab-btn active" data-mode="heightAngle">90° kick</button>
+        <button class="tab-btn" data-mode="howto">Hur du använder detta</button>
+        <button class="tab-btn" data-mode="iso3d">3D ISO</button>
+      </div>
+
+      <div class="unit-switch">
+        <select id="unitSelect">
+          <option value="mm">mm</option>
+          <option value="cm">cm</option>
+        </select>
+      </div>
+    </div>
   </div>
-</div>
-  
 
-    <div class="layout" id="layoutRoot">
-      <section>
-        <div class="mode-tabs">
-          <div class="tabs-left">
-            <button class="tab-btn active" data-mode="heightAngle">90° kick</button>
-            <button class="tab-btn" data-mode="howto">Hur du använder detta</button>
-            <button class="tab-btn" data-mode="iso3d">3D ISO</button>
-          </div>
-
-          <div class="unit-switch">
-            <select id="unitSelect">
-              <option value="mm">mm</option>
-              <option value="cm">cm</option>
-            </select>
-          </div>
-        </div>
+  <div class="layout" id="layoutRoot">
+    <section>
 
         <div id="mode-heightAngle">
           <section class="diagram-card" id="illustrationPanel">
