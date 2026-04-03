@@ -592,7 +592,7 @@ svg {
 }
 
 @media (max-width: 480px) {
-  .app { padding: 12px 12px 10px; }
+
 
   h1 { font-size: 1.1rem; }
 
@@ -1159,7 +1159,7 @@ body.numpad-open {
 
 .app-footer {
   position: fixed;
-  bottom: 0;
+  bottom: 10px;
   width: 100%;
   text-align: center;
   font-size: 0.7rem;
@@ -1214,6 +1214,6 @@ body.numpad-open {
   }
 
   body.iso-mode-active .app {
-    padding-bottom: 170px;
+    padding-bottom: 135px;
   }
 }
