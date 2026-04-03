@@ -1180,3 +1180,22 @@ body.numpad-open {
   border-radius: 999px;
   
 }
+
+@media (max-width: 780px) {
+  body.iso-mode-active .mode-tabs {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 200;
+    margin-bottom: 0;
+    width: auto;
+    max-width: 780px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  body.iso-mode-active .app {
+    padding-bottom: 90px;
+  }
+}

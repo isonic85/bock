@@ -32,6 +32,44 @@
         </div>
 
         <div id="mode-heightAngle">
+          <section class="diagram-card" id="illustrationPanel">
+            <div class="diagram-header">
+              <span>Illustration</span>
+              <span class="badge">0-punkt = skärning streckad/grön</span>
+            </div>
+
+            <svg id="kickSvg" viewBox="0 0 220 220" aria-hidden="true">
+              <line id="leftAxis" class="axis" x1="20" y1="200" x2="20" y2="20" />
+              <line id="baseLeg" class="leg horizontal" x1="20" y1="200" x2="200" y2="200" />
+              <line id="riseLeg" class="leg vertical" x1="20" y1="200" x2="20" y2="80" />
+              <line id="projLine" class="axis" x1="180" y1="200" x2="180" y2="80" />
+              <line id="hypLeg" class="hyp" x1="20" y1="200" x2="180" y2="80" />
+              <circle id="zeroPoint" class="point" cx="180" cy="200" r="3" />
+              <circle id="endPoint" class="point" cx="180" cy="80" r="3" />
+              <text id="labelZero" class="dim-text" x="184" y="195">0</text>
+              <text id="labelFx" class="dim-text" x="100" y="210">fx</text>
+              <text id="labelHeight" class="dim-text" x="5" y="130">h</text>
+              <text id="labelHyp" class="dim-text" x="120" y="120">L</text>
+              <text id="labelAngle" class="dim-text" x="40" y="190">v</text>
+            </svg>
+
+            <div class="note">
+              Grönt = rakt rör, blått = offset, orange = lutande rördel L.
+              0-punkten är där proj-linjen möter det raka röret.
+            </div>
+          </section>
+
+          <div class="results">
+            <div class="results-row">
+              <span class="label">Rörlängd (lutande segment L):</span>
+              <span class="value" id="lenOut2">–</span>
+            </div>
+            <div class="results-row">
+              <span class="label">Horisontell Grön (fx):</span>
+              <span class="value" id="fxOut2">–</span>
+            </div>
+          </div>
+
           <div class="field">
             <label for="height2">
               Höjd från referenslinje (offset)
@@ -64,21 +102,6 @@
 
           <div id="errorHeightAngle" class="error">
             Ange positiv höjd och vinkel mellan 0–89.9°.
-          </div>
-
-          <div class="results">
-            <div class="results-row">
-              <span class="label">Rörlängd (lutande segment L):</span>
-              <span class="value" id="lenOut2">–</span>
-            </div>
-            <div class="results-row">
-              <span class="label">Horisontell projektion (fx):</span>
-              <span class="value" id="fxOut2">–</span>
-            </div>
-            <div class="note">
-              Längd = höjd / sin(v)<br />
-              fx = längd · cos(v) = höjd / tan(v).
-            </div>
           </div>
         </div>
 
@@ -354,33 +377,6 @@
           </details>
         </div>
       </section>
-
-      <section class="diagram-card" id="illustrationPanel">
-        <div class="diagram-header">
-          <span>Illustration</span>
-          <span class="badge">0-punkt = skärning streckad/grön</span>
-        </div>
-
-        <svg id="kickSvg" viewBox="0 0 220 220" aria-hidden="true">
-          <line id="leftAxis" class="axis" x1="20" y1="200" x2="20" y2="20" />
-          <line id="baseLeg" class="leg horizontal" x1="20" y1="200" x2="200" y2="200" />
-          <line id="riseLeg" class="leg vertical" x1="20" y1="200" x2="20" y2="80" />
-          <line id="projLine" class="axis" x1="180" y1="200" x2="180" y2="80" />
-          <line id="hypLeg" class="hyp" x1="20" y1="200" x2="180" y2="80" />
-          <circle id="zeroPoint" class="point" cx="180" cy="200" r="3" />
-          <circle id="endPoint" class="point" cx="180" cy="80" r="3" />
-          <text id="labelZero" class="dim-text" x="184" y="195">0</text>
-          <text id="labelFx" class="dim-text" x="100" y="210">fx</text>
-          <text id="labelHeight" class="dim-text" x="5" y="130">h</text>
-          <text id="labelHyp" class="dim-text" x="120" y="120">L</text>
-          <text id="labelAngle" class="dim-text" x="40" y="190">v</text>
-        </svg>
-
-        <div class="note">
-          Grönt = rakt rör, blått = offset, orange = lutande rördel L.
-          0-punkten är där proj-linjen möter det raka röret.
-        </div>
-      </section>
     </div>
   </main>
 
@@ -456,31 +452,33 @@
       <div class="archive-list" id="archiveList"></div>
     </div>
   </div>
-<div id="customNumpad" class="custom-numpad hidden" aria-hidden="true">
-  <div class="custom-numpad-card">
-    <div class="custom-numpad-grid">
-      <button type="button" class="np-btn" data-np-value="1">1</button>
-      <button type="button" class="np-btn" data-np-value="2">2</button>
-      <button type="button" class="np-btn" data-np-value="3">3</button>
 
-      <button type="button" class="np-btn" data-np-value="4">4</button>
-      <button type="button" class="np-btn" data-np-value="5">5</button>
-      <button type="button" class="np-btn" data-np-value="6">6</button>
+  <div id="customNumpad" class="custom-numpad hidden" aria-hidden="true">
+    <div class="custom-numpad-card">
+      <div class="custom-numpad-grid">
+        <button type="button" class="np-btn" data-np-value="1">1</button>
+        <button type="button" class="np-btn" data-np-value="2">2</button>
+        <button type="button" class="np-btn" data-np-value="3">3</button>
 
-      <button type="button" class="np-btn" data-np-value="7">7</button>
-      <button type="button" class="np-btn" data-np-value="8">8</button>
-      <button type="button" class="np-btn" data-np-value="9">9</button>
+        <button type="button" class="np-btn" data-np-value="4">4</button>
+        <button type="button" class="np-btn" data-np-value="5">5</button>
+        <button type="button" class="np-btn" data-np-value="6">6</button>
 
-      <button type="button" class="np-btn" data-np-value="+">+</button>
-      <button type="button" class="np-btn" data-np-value="0">0</button>
-      <button type="button" class="np-btn" data-np-action="backspace">⌫</button>
+        <button type="button" class="np-btn" data-np-value="7">7</button>
+        <button type="button" class="np-btn" data-np-value="8">8</button>
+        <button type="button" class="np-btn" data-np-value="9">9</button>
 
-      <button type="button" class="np-btn" data-np-value="-">−</button>
-      <button type="button" class="np-btn" data-np-value=",">,</button>
-      <button type="button" class="np-btn np-btn-primary" data-np-action="close">Klar</button>
+        <button type="button" class="np-btn" data-np-value="+">+</button>
+        <button type="button" class="np-btn" data-np-value="0">0</button>
+        <button type="button" class="np-btn" data-np-action="backspace">⌫</button>
+
+        <button type="button" class="np-btn" data-np-value="-">−</button>
+        <button type="button" class="np-btn" data-np-value=",">,</button>
+        <button type="button" class="np-btn np-btn-primary" data-np-action="close">Klar</button>
+      </div>
     </div>
   </div>
-</div>
+
   <footer class="app-footer">
     ©Copyright 2026 Niklas Persson, v1.0
   </footer>

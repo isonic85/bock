@@ -189,8 +189,8 @@ const DEFAULT_VIEW = Object.freeze({
     show(dom.modeIso3d, mode === "iso3d");
 
     const isoActive = mode === "iso3d";
-    show(dom.illustrationPanel, !isoActive);
     dom.layoutRoot.classList.toggle("iso-only", isoActive);
+    document.body.classList.toggle("iso-mode-active", mode === "iso3d");
 
     if (mode === "heightAngle") calculateHeightAngle();
     if (mode === "iso3d") {
