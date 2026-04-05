@@ -897,76 +897,130 @@ const off = readLengthInput(dom.offsetMmInput);
     ctx.closePath();
   }
 
-  function drawCanvasDimCAD(ctx, a, b, text, outward, opts = {}) {
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const segL = Math.hypot(dx, dy);
-    if (segL < 1e-6) return;
+function getIsoGuideDirections() {
+  const origin = projectIso({ x: 0, y: 0, z: 0 });
+  const guides = [
+    projectIso({ x: 100, y: 0, z: 0 }),   // E
+    projectIso({ x: 0, y: 100, z: 0 }),   // N
+    projectIso({ x: 0, y: 0, z: 100 })    // UP
+  ];
 
-    const ux = dx / segL;
-    const uy = dy / segL;
-    const nx = -uy;
-    const ny = ux;
-    const off = opts.offPx ?? 10;
-    const ex = nx * off * outward;
-    const ey = ny * off * outward;
-    const need = Math.max(0, (opts.minLenPx ?? 26) - segL);
+  return guides
+    .map((p) => {
+      const dx = p.x - origin.x;
+      const dy = p.y - origin.y;
+      const len = Math.hypot(dx, dy) || 1;
+      return { x: dx / len, y: dy / len };
+    });
+}
 
-    const aDim = { x: a.x + ex - ux * (need / 2), y: a.y + ey - uy * (need / 2) };
-    const bDim = { x: b.x + ex + ux * (need / 2), y: b.y + ey + uy * (need / 2) };
-    const ang = Math.atan2(bDim.y - aDim.y, bDim.x - aDim.x);
+function pickClosestIsoDirection(nx, ny) {
+  const dirs = getIsoGuideDirections();
 
-    ctx.save();
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.font = opts.font ?? "12px system-ui";
+  let best = dirs[0];
+  let bestDot = -Infinity;
 
-    const tw = ctx.measureText(text).width;
-    const gap = tw / 2 + (opts.gapPad ?? 5);
-    const mx = (aDim.x + bDim.x) / 2;
-    const my = (aDim.y + bDim.y) / 2;
-
-    const gx1 = { x: mx - Math.cos(ang) * gap, y: my - Math.sin(ang) * gap };
-    const gx2 = { x: mx + Math.cos(ang) * gap, y: my + Math.sin(ang) * gap };
-
-    ctx.strokeStyle = opts.extColor ?? "rgba(248,250,252,.65)";
-    ctx.lineWidth = opts.extW ?? 1;
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(aDim.x, aDim.y);
-    ctx.moveTo(b.x, b.y);
-    ctx.lineTo(bDim.x, bDim.y);
-    ctx.stroke();
-
-    ctx.strokeStyle = opts.color ?? "#e5e7eb";
-    ctx.lineWidth = opts.lineW ?? 1.4;
-    ctx.beginPath();
-    ctx.moveTo(aDim.x, aDim.y);
-    ctx.lineTo(gx1.x, gx1.y);
-    ctx.moveTo(gx2.x, gx2.y);
-    ctx.lineTo(bDim.x, bDim.y);
-    ctx.stroke();
-
-    const r = opts.dotR ?? 2.2;
-    ctx.fillStyle = opts.dotFill ?? "#e5e7eb";
-    ctx.beginPath();
-    ctx.arc(aDim.x, aDim.y, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(bDim.x, bDim.y, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    let rot = ang;
-    if (rot > Math.PI / 2 || rot < -Math.PI / 2) rot += Math.PI;
-
-    ctx.translate(mx, my);
-    ctx.rotate(rot);
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = opts.textColor ?? "#e5e7eb";
-    ctx.fillText(text, 0, opts.textNudge ?? 0);
-    ctx.restore();
+  for (const dir of dirs) {
+    const dotAbs = Math.abs(nx * dir.x + ny * dir.y);
+    if (dotAbs > bestDot) {
+      bestDot = dotAbs;
+      best = dir;
+    }
   }
+
+  const sign = (nx * best.x + ny * best.y) >= 0 ? 1 : -1;
+  return {
+    x: best.x * sign,
+    y: best.y * sign
+  };
+}
+
+function drawCanvasDimCAD(ctx, a, b, text, outward, opts = {}) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const segL = Math.hypot(dx, dy);
+  if (segL < 1e-6) return;
+
+  const ux = dx / segL;
+  const uy = dy / segL;
+
+  const rawNx = -uy;
+  const rawNy = ux;
+
+  // Snäpp ändlinjerna till närmaste ISO-riktning
+  const isoN = pickClosestIsoDirection(rawNx, rawNy);
+  const nx = isoN.x;
+  const ny = isoN.y;
+
+  const off = opts.offPx ?? 10;
+  const ex = nx * off * outward;
+  const ey = ny * off * outward;
+  const need = Math.max(0, (opts.minLenPx ?? 26) - segL);
+
+  const aDim = {
+    x: a.x + ex - ux * (need / 2),
+    y: a.y + ey - uy * (need / 2)
+  };
+  const bDim = {
+    x: b.x + ex + ux * (need / 2),
+    y: b.y + ey + uy * (need / 2)
+  };
+
+  const ang = Math.atan2(bDim.y - aDim.y, bDim.x - aDim.x);
+
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.font = opts.font ?? "12px system-ui";
+
+  const tw = ctx.measureText(text).width;
+  const gap = tw / 2 + (opts.gapPad ?? 5);
+  const mx = (aDim.x + bDim.x) / 2;
+  const my = (aDim.y + bDim.y) / 2;
+
+  const gx1 = { x: mx - Math.cos(ang) * gap, y: my - Math.sin(ang) * gap };
+  const gx2 = { x: mx + Math.cos(ang) * gap, y: my + Math.sin(ang) * gap };
+
+  // ISO-riktade ändlinjer
+  ctx.strokeStyle = opts.extColor ?? "rgba(248,250,252,.65)";
+  ctx.lineWidth = opts.extW ?? 1;
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(aDim.x, aDim.y);
+  ctx.moveTo(b.x, b.y);
+  ctx.lineTo(bDim.x, bDim.y);
+  ctx.stroke();
+
+  // Måttlinjen
+  ctx.strokeStyle = opts.color ?? "#e5e7eb";
+  ctx.lineWidth = opts.lineW ?? 1.4;
+  ctx.beginPath();
+  ctx.moveTo(aDim.x, aDim.y);
+  ctx.lineTo(gx1.x, gx1.y);
+  ctx.moveTo(gx2.x, gx2.y);
+  ctx.lineTo(bDim.x, bDim.y);
+  ctx.stroke();
+
+  const r = opts.dotR ?? 2.2;
+  ctx.fillStyle = opts.dotFill ?? "#e5e7eb";
+  ctx.beginPath();
+  ctx.arc(aDim.x, aDim.y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(bDim.x, bDim.y, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  let rot = ang;
+  if (rot > Math.PI / 2 || rot < -Math.PI / 2) rot += Math.PI;
+
+  ctx.translate(mx, my);
+  ctx.rotate(rot);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = opts.textColor ?? "#e5e7eb";
+  ctx.fillText(text, 0, opts.textNudge ?? 0);
+  ctx.restore();
+}
 
   function drawMiniAxes() {
     if (!ctxIso) return;
@@ -2040,14 +2094,14 @@ const placedLabels = [];
       ctxIso.beginPath();
       if (i === 0) {
         ctxIso.fillStyle = "#e5e7eb";
-        ctxIso.arc(c.x, c.y, 5, 0, Math.PI * 2);
+        ctxIso.arc(c.x, c.y, 2, 0, Math.PI * 2);
         ctxIso.fill();
         ctxIso.strokeStyle = "rgba(248,250,252,.7)";
         ctxIso.lineWidth = 2;
         ctxIso.stroke();
       } else if (i === points3d.length - 1) {
         ctxIso.fillStyle = "#f97316";
-        ctxIso.arc(c.x, c.y, 5, 0, Math.PI * 2);
+        ctxIso.arc(c.x, c.y, 4, 0, Math.PI * 2);
         ctxIso.fill();
         ctxIso.strokeStyle = "rgba(2,6,23,.8)";
         ctxIso.lineWidth = 2;

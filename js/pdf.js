@@ -37,8 +37,43 @@
       doc.line(x, y, x2, y2);
     }
   }
+  function getPdfIsoGuideDirections(projectIso) {
+    const origin = projectIso({ x: 0, y: 0, z: 0 });
+    const guides = [
+      projectIso({ x: 100, y: 0, z: 0 }),
+      projectIso({ x: 0, y: 100, z: 0 }),
+      projectIso({ x: 0, y: 0, z: 100 })
+    ];
 
-  function drawPdfDimCAD(doc, a, b, text, outward, opts = {}) {
+    return guides.map((p) => {
+      const dx = p.x - origin.x;
+      const dy = p.y - origin.y;
+      const len = Math.hypot(dx, dy) || 1;
+      return { x: dx / len, y: dy / len };
+    });
+  }
+
+  function pickClosestPdfIsoDirection(nx, ny, projectIso) {
+    const dirs = getPdfIsoGuideDirections(projectIso);
+
+    let best = dirs[0];
+    let bestDot = -Infinity;
+
+    for (const dir of dirs) {
+      const dotAbs = Math.abs(nx * dir.x + ny * dir.y);
+      if (dotAbs > bestDot) {
+        bestDot = dotAbs;
+        best = dir;
+      }
+    }
+
+    const sign = (nx * best.x + ny * best.y) >= 0 ? 1 : -1;
+    return {
+      x: best.x * sign,
+      y: best.y * sign
+    };
+  }
+   function drawPdfDimCAD(doc, a, b, text, outward, projectIso, opts = {}) {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const segL = Math.hypot(dx, dy);
@@ -46,15 +81,29 @@
 
     const ux = dx / segL;
     const uy = dy / segL;
-    const nx = -uy;
-    const ny = ux;
+
+    const rawNx = -uy;
+    const rawNy = ux;
+
+    const isoN = pickClosestPdfIsoDirection(rawNx, rawNy, projectIso);
+    const nx = isoN.x;
+    const ny = isoN.y;
+
     const off = opts.offPx ?? 10;
     const ex = nx * off * outward;
     const ey = ny * off * outward;
     const need = Math.max(0, (opts.minLenPx ?? 26) - segL);
 
-    const aDim = { x: a.x + ex - ux * (need / 2), y: a.y + ey - uy * (need / 2) };
-    const bDim = { x: b.x + ex + ux * (need / 2), y: b.y + ey * 1 + uy * (need / 2) };
+    const aDim = {
+      x: a.x + ex - ux * (need / 2),
+      y: a.y + ey - uy * (need / 2)
+    };
+
+    const bDim = {
+      x: b.x + ex + ux * (need / 2),
+      y: b.y + ey + uy * (need / 2)
+    };
+
     const ang = Math.atan2(bDim.y - aDim.y, bDim.x - aDim.x);
 
     doc.setDrawColor(...(opts.extColor ?? [160, 160, 160]));
@@ -236,6 +285,7 @@ function drawPdfOffsetBaseTotalDim(doc, points3d, stepIndex, toPdf, centroid2, s
     b,
     fmtMm(cc.totalLen, 1),
     outwardSign(a, b, centroid2),
+    projectIso,
     {
       color: [56, 189, 248],
       extColor: [110, 190, 220],
@@ -393,7 +443,7 @@ if (state.showDims) {
     if (seg.len <= 1e-4) continue;
     const a = toPdf(projectIso(seg.start));
     const b = toPdf(projectIso(seg.end));
-    drawPdfDimCAD(doc, a, b, fmtMm(seg.len, 1), outwardSign(a, b, centroid2), {
+   drawPdfDimCAD(doc, a, b, fmtMm(seg.len, 1), outwardSign(a, b, centroid2), projectIso, {
       color: [0, 0, 0],
       extColor: [120, 120, 120],
       offPx: 10,
