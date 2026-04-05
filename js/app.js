@@ -502,7 +502,9 @@ function normalizeLengthExpressionInput(input) {
 function isCustomNumpadField(input) {
   return [
     dom.height2Input,
+    dom.angle2Input,
     dom.stepMmInput,
+    dom.offsetAngleInput,
     dom.offsetMmInput,
     dom.offsetCcMmInput,
     dom.bendRadiusMmInput
@@ -3206,26 +3208,39 @@ function initCustomNumpad() {
 }
 
 function initMobileNumberInputs() {
-  const expressionFields = [
-    dom.height2Input,
-    dom.stepMmInput,
-    dom.offsetMmInput,
-    dom.offsetCcMmInput,
-    dom.bendRadiusMmInput
-  ];
+const expressionFields = [
+  dom.height2Input,
+  dom.stepMmInput,
+  dom.offsetMmInput,
+  dom.offsetCcMmInput,
+  dom.bendRadiusMmInput
+];
 
-  expressionFields.forEach((input) => {
-    bindNumericInputUx(input, { allowExpression: true });
+expressionFields.forEach((input) => {
+  bindNumericInputUx(input, { allowExpression: true });
 
-    on(input, "pointerdown", (e) => {
-      if (window.innerWidth > 520) return;
-      e.preventDefault();
-      showCustomNumpad(input);
-    });
+  on(input, "pointerdown", (e) => {
+    if (window.innerWidth > 520) return;
+    e.preventDefault();
+    showCustomNumpad(input);
   });
+});
 
-  bindNumericInputUx(dom.offsetAngleInput);
-  bindNumericInputUx(dom.angle2Input);
+const angleFields = [
+  dom.offsetAngleInput,
+  dom.angle2Input
+];
+
+angleFields.forEach((input) => {
+  bindNumericInputUx(input);
+
+  on(input, "pointerdown", (e) => {
+    if (window.innerWidth > 520) return;
+    e.preventDefault();
+    showCustomNumpad(input);
+  });
+});
+
 }
 
 function setDetailsOpen(el, open) {
