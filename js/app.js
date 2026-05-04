@@ -28,6 +28,14 @@ readExpressionNumber,
 
   const dom = {
 
+
+modeParallelBend: byId("mode-parallelBend"),
+parallelCcInput: byId("parallelCc"),
+parallelAngleInput: byId("parallelAngle"),
+parallelDiffOut: byId("parallelDiffOut"),
+parallelExtraOut: byId("parallelExtraOut"),
+errorParallelBend: byId("errorParallelBend"),
+
     customNumpad: byId("customNumpad"),
     numpadButtons: $$("[data-np-value], [data-np-action]"),
     
@@ -185,13 +193,15 @@ const DEFAULT_VIEW = Object.freeze({
 
   function showMode(mode) {
     show(dom.modeHeightAngle, mode === "heightAngle");
+    show(dom.modeParallelBend, mode === "parallelBend");
     show(dom.modeHowto, mode === "howto");
     show(dom.modeIso3d, mode === "iso3d");
 
     const isoActive = mode === "iso3d";
     dom.layoutRoot.classList.toggle("iso-only", isoActive);
     document.body.classList.toggle("iso-mode-active", mode === "iso3d");
-
+    
+    if (mode === "parallelBend") calculateParallelBend();
     if (mode === "heightAngle") calculateHeightAngle();
     if (mode === "iso3d") {
       syncStepsFromTextarea();
@@ -200,7 +210,95 @@ const DEFAULT_VIEW = Object.freeze({
       syncIsoMobileSections();
     }
   }
+function calculateParallelBend() {
+  const cc = readLengthInput(dom.parallelCcInput);
+  const angleDeg = readNumber(dom.parallelAngleInput);
 
+  if (
+    !Number.isFinite(cc) ||
+    !Number.isFinite(angleDeg) ||
+    cc <= 0 ||
+    angleDeg <= 0 ||
+    angleDeg >= 90
+  ) {
+    show(dom.errorParallelBend, true);
+    dom.parallelDiffOut.textContent = "–";
+    dom.parallelExtraOut.textContent = "–";
+    return;
+  }
+
+  show(dom.errorParallelBend, false);
+
+const angleRad = degToRad(angleDeg);
+
+// Skillnad mellan första knäckarna för att hålla samma C.C
+const firstBendShift = cc * Math.tan(angleRad / 2);
+
+// Samma förskjutning gäller vid andra knäcken
+const secondBendShift = firstBendShift;
+
+dom.parallelExtraOut.textContent = fmtMm(firstBendShift, 3);
+dom.parallelDiffOut.textContent = fmtMm(secondBendShift, 3);
+
+updateParallelBendDiagram(angleDeg);
+}
+
+function updateParallelBendDiagram(angleDeg) {
+  const pipeA = byId("parallelPipeA");
+  const pipeB = byId("parallelPipeB");
+  const markA = byId("parallelBendMarkA");
+const markB = byId("parallelBendMarkB");
+
+  if (!pipeA || !pipeB) return;
+
+  const angleRad = degToRad(angleDeg);
+  const ccVisual = 24;
+  const bendShift = ccVisual * Math.tan(angleRad / 2);
+
+  const a1 = { x: 25, y: 140 };
+  const b1 = { x: 90, y: 140 };
+
+  const diagLen = 82;
+  const c1 = {
+    x: b1.x + Math.cos(angleRad) * diagLen,
+    y: b1.y - Math.sin(angleRad) * diagLen
+  };
+
+  const d1 = {
+    x: c1.x + 80,
+    y: c1.y
+  };
+
+  const a2 = { x: a1.x, y: a1.y - ccVisual };
+  const b2 = { x: b1.x - bendShift, y: b1.y - ccVisual };
+  const c2 = { x: c1.x - bendShift, y: c1.y - ccVisual };
+  const d2 = { x: d1.x, y: d1.y - ccVisual };
+
+  pipeA.setAttribute(
+    "points",
+    `${a1.x},${a1.y} ${b1.x},${b1.y} ${c1.x},${c1.y} ${d1.x},${d1.y}`
+  );
+
+  pipeB.setAttribute(
+    "points",
+    `${a2.x},${a2.y} ${b2.x},${b2.y} ${c2.x},${c2.y} ${d2.x},${d2.y}`
+  );
+
+if (markA && markB) {
+  const yTop = Math.min(b1.y, b2.y) - 8;
+  const yBottom = Math.max(b1.y, b2.y) + 8;
+
+  markA.setAttribute("x1", b1.x);
+  markA.setAttribute("y1", yBottom);
+  markA.setAttribute("x2", b1.x);
+  markA.setAttribute("y2", yTop);
+
+  markB.setAttribute("x1", b2.x);
+  markB.setAttribute("y1", yBottom);
+  markB.setAttribute("x2", b2.x);
+  markB.setAttribute("y2", yTop);
+}
+}
   function openConfirmModal(message) {
     return new Promise((resolve) => {
       if (!dom.confirmModal || !dom.confirmOkBtn || !dom.confirmCancelBtn || !dom.confirmModalText) {
@@ -503,6 +601,8 @@ function isCustomNumpadField(input) {
   return [
     dom.height2Input,
     dom.angle2Input,
+    dom.parallelCcInput,
+    dom.parallelAngleInput,
     dom.stepMmInput,
     dom.offsetAngleInput,
     dom.offsetMmInput,
@@ -614,13 +714,14 @@ function convertDisplayedInputs(fromUnit, toUnit) {
     ? 0.1
     : 10;
 
-  const fields = [
-    dom.height2Input,
-    dom.stepMmInput,
-    dom.offsetMmInput,
-    dom.offsetCcMmInput,
-    dom.bendRadiusMmInput
-  ];
+const fields = [
+  dom.height2Input,
+  dom.parallelCcInput,
+  dom.stepMmInput,
+  dom.offsetMmInput,
+  dom.offsetCcMmInput,
+  dom.bendRadiusMmInput
+];
 
   fields.forEach((input) => {
     if (!input) return;
@@ -652,8 +753,13 @@ function updateUnitLabels() {
     });
     on(dom.height2Input, "input", calculateHeightAngle);
     on(dom.angle2Input, "input", calculateHeightAngle);
+
   }
 
+      function initParallelBend() {
+  on(dom.parallelCcInput, "input", calculateParallelBend);
+  on(dom.parallelAngleInput, "input", calculateParallelBend);
+}
  function buildOffsetStep(baseDir, offsetDir, angleDeg, offsetMm) {
   const absAngle = Math.abs(angleDeg);
   if (!(absAngle > 0 && absAngle < 90)) return null;
@@ -3145,7 +3251,9 @@ async function saveCurrentDrawing(forceNew = false) {
   dom.radiusDimsEnabled,
   dom.radiusEnabled,
   dom.bendRadiusMmInput,
-  dom.zeroBendEnabled
+  dom.zeroBendEnabled,
+  dom.parallelCcInput,
+dom.parallelAngleInput
 ].forEach((el) => {
       if (!el) return;
       on(el, "input", mark);
@@ -3264,6 +3372,7 @@ function initCustomNumpad() {
 function initMobileNumberInputs() {
 const expressionFields = [
   dom.height2Input,
+  dom.parallelCcInput,
   dom.stepMmInput,
   dom.offsetMmInput,
   dom.offsetCcMmInput,
@@ -3282,7 +3391,8 @@ expressionFields.forEach((input) => {
 
 const angleFields = [
   dom.offsetAngleInput,
-  dom.angle2Input
+  dom.angle2Input,
+  dom.parallelAngleInput
 ];
 
 angleFields.forEach((input) => {
@@ -3320,7 +3430,7 @@ function syncIsoMobileSections() {
 }
 
 function initApp() {
-  
+  initParallelBend();
   initTabs();
   initHeightAngle();
   initIsoControls();

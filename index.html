@@ -17,9 +17,10 @@
 
     <div class="mode-tabs">
       <div class="tabs-left">
-        <button class="tab-btn active" data-mode="heightAngle">90° kick</button>
-        <button class="tab-btn" data-mode="howto">Hur du använder detta</button>
-        <button class="tab-btn" data-mode="iso3d">3D ISO</button>
+      <button class="tab-btn active" data-mode="heightAngle">90° kick</button>
+      <button class="tab-btn" data-mode="parallelBend">Parallel böj</button>
+      <button class="tab-btn" data-mode="howto">Hur du använder detta</button>
+      <button class="tab-btn" data-mode="iso3d">3D ISO</button>
       </div>
 
       <div class="unit-switch">
@@ -107,7 +108,58 @@
             Ange positiv höjd och vinkel mellan 0–89.9°.
           </div>
         </div>
+<div id="mode-parallelBend" class="hidden">
+  <section class="diagram-card">
+    <div class="diagram-header">
+      <span>Illustration – Parallel böj</span>
+      <span class="badge">Två parallella rör med offset</span>
+    </div>
 
+<svg id="parallelSvg" viewBox="0 0 260 180" aria-hidden="true"> <polyline id="parallelPipeA" class="hyp" points="25,140 90,140 145,80 235,80" />
+
+<polyline id="parallelPipeB" class="leg vertical" points="25,120 90,120 145,60 235,60" />
+
+<line id="parallelBendMarkA" class="axis" /> <line id="parallelBendMarkB" class="axis" />
+
+<text class="dim-text" x="165" y="72">C.C</text>
+</svg>
+
+    <div class="note">
+      Orange = första rör, blått = parallellt rör. C.C används för att räkna skillnad mellan parallella böjar.
+    </div>
+  </section>
+
+  <div class="results">
+    <div class="results-row">
+      <span class="label">Skillnad i längd:</span>
+      <span class="value" id="parallelDiffOut">–</span>
+    </div>
+    <div class="results-row">
+      <span class="label">uppdatering på väg:</span>
+      <span class="value" id="parallelExtraOut">–</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="parallelCc">
+      C.C mellan rör
+      <span class="unit" data-length-unit>(mm)</span>
+    </label>
+    <input id="parallelCc" type="text" inputmode="decimal" value="35" />
+  </div>
+
+  <div class="field">
+    <label for="parallelAngle">
+      Bockvinkel
+      <span class="unit">(°)</span>
+    </label>
+    <input id="parallelAngle" type="text" inputmode="decimal" value="45" />
+  </div>
+
+  <div id="errorParallelBend" class="error">
+    Ange C.C större än 0 och vinkel mellan 0–89.9°.
+  </div>
+</div>
         <div id="mode-howto" class="hidden">
           <div class="howto">
             <h3>Hur du har kontroll på en 90° kick</h3>
