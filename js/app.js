@@ -152,6 +152,7 @@ const DEFAULT_VIEW = Object.freeze({
 
     numpadTarget: null,
     numpadReplaceOnNextInput: false,
+    numpadHasTyped: false,
     drawingId: null,
     drawingName: "",
     isDirty: false,
@@ -619,14 +620,23 @@ function showCustomNumpad(input) {
 
   if (state.numpadTarget && state.numpadTarget !== input) {
     state.numpadTarget.removeAttribute("readonly");
+
+    if (!state.numpadHasTyped && !String(state.numpadTarget.value || "").trim()) {
+      state.numpadTarget.value = state.numpadTarget.dataset.numpadOpenValue || "";
+    }
+
     normalizeLengthExpressionInput(state.numpadTarget);
   }
 
   state.numpadTarget = input;
-  state.numpadReplaceOnNextInput = true;
+  state.numpadReplaceOnNextInput = false;
+  state.numpadHasTyped = false;
+
+  input.dataset.numpadOpenValue = input.value ?? "";
+  input.value = "";
 
   input.setAttribute("readonly", "readonly");
-  input.setSelectionRange?.(0, input.value.length);
+  input.setSelectionRange?.(0, 0);
 
   dom.customNumpad.classList.remove("hidden");
   dom.customNumpad.setAttribute("aria-hidden", "false");
@@ -649,25 +659,30 @@ function hideCustomNumpad() {
   document.body.classList.remove("numpad-open");
 
   if (state.numpadTarget) {
-    state.numpadTarget.removeAttribute("readonly");
-    normalizeLengthExpressionInput(state.numpadTarget);
+    const input = state.numpadTarget;
+    input.removeAttribute("readonly");
+
+    if (!state.numpadHasTyped && !String(input.value || "").trim()) {
+      input.value = input.dataset.numpadOpenValue || "";
+    } else {
+      normalizeLengthExpressionInput(input);
+    }
+
+    delete input.dataset.numpadOpenValue;
   }
 
   state.numpadTarget = null;
   state.numpadReplaceOnNextInput = false;
+  state.numpadHasTyped = false;
 }
 
 function insertIntoFocusedLengthInput(text) {
   const input = state.numpadTarget;
   if (!input) return;
 
-  if (state.numpadReplaceOnNextInput) {
-    input.value = text;
-    state.numpadReplaceOnNextInput = false;
-    input.setSelectionRange?.(input.value.length, input.value.length);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    keepIsoInputVisible(input);
-    return;
+  if (!state.numpadHasTyped) {
+    input.value = "";
+    state.numpadHasTyped = true;
   }
 
   const start = input.selectionStart ?? input.value.length;
@@ -688,13 +703,7 @@ function backspaceFocusedLengthInput() {
   const input = state.numpadTarget;
   if (!input) return;
 
-  if (state.numpadReplaceOnNextInput) {
-    input.value = "";
-    state.numpadReplaceOnNextInput = false;
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    keepIsoInputVisible(input);
-    return;
-  }
+  state.numpadHasTyped = true;
 
   const start = input.selectionStart ?? input.value.length;
   const end = input.selectionEnd ?? input.value.length;
@@ -4330,25 +4339,31 @@ function bindNumericInputUx(input, { restoreOnEmpty = true, allowExpression = fa
 }
 
 function initCustomNumpad() {
+  const handleNumpadButton = (btn, e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+
+    const action = btn.dataset.npAction;
+    const value = btn.dataset.npValue;
+
+    if (action === "close") {
+      hideCustomNumpad();
+      return;
+    }
+
+    if (action === "backspace") {
+      backspaceFocusedLengthInput();
+      return;
+    }
+
+    if (value) {
+      insertIntoFocusedLengthInput(value);
+    }
+  };
+
   dom.numpadButtons.forEach((btn) => {
-    on(btn, "click", () => {
-      const action = btn.dataset.npAction;
-      const value = btn.dataset.npValue;
-
-      if (action === "close") {
-        hideCustomNumpad();
-        return;
-      }
-
-      if (action === "backspace") {
-        backspaceFocusedLengthInput();
-        return;
-      }
-
-      if (value) {
-        insertIntoFocusedLengthInput(value);
-      }
-    });
+    on(btn, "pointerdown", (e) => handleNumpadButton(btn, e));
+    on(btn, "click", (e) => e.preventDefault());
   });
 
   on(document, "click", (e) => {
@@ -4408,23 +4423,13 @@ function setDetailsOpen(el, open) {
 }
 
 function syncIsoMobileSections() {
-  const isMobile = window.innerWidth <= 520;
-
   // Offset-inställningarna ska aldrig visas i UI:t.
   // De finns bara som dolda standardvärden för offset-ritningen.
   show(dom.offsetDetails, false);
   show(dom.offsetPanel, false);
 
-  if (!isMobile) {
-    setDetailsOpen(dom.radiusDetails, true);
-    setDetailsOpen(dom.manualStepsDetails, true);
-    setDetailsOpen(dom.stepsListDetails, true);
-    return;
-  }
-
-  setDetailsOpen(dom.radiusDetails, !!dom.radiusEnabled?.checked || !!dom.zeroBendEnabled?.checked);
-  setDetailsOpen(dom.manualStepsDetails, false);
-  setDetailsOpen(dom.stepsListDetails, state.isoSteps.length > 0);
+  // Gardiner ska inte öppnas eller stängas automatiskt.
+  // Användaren styr själv Radie/0-punkt, Manuell steg-lista och Stegöversikt.
 }
 
 function initApp() {
