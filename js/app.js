@@ -599,6 +599,8 @@ function normalizeLengthExpressionInput(input) {
   input.value = toDisplayLength(mm);
 }
 function isCustomNumpadField(input) {
+  if (input?.closest?.("#precisionEditorBackdrop")) return true;
+
   return [
     dom.height2Input,
     dom.angle2Input,
@@ -2760,7 +2762,7 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
     card.style.cssText = [
       "position:fixed",
       "left:50%",
-      "bottom:calc(18px + env(safe-area-inset-bottom))",
+      "top:18vh",
       "transform:translateX(-50%)",
       "width:min(420px,calc(100vw - 24px))",
       "padding:12px",
@@ -2783,6 +2785,7 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
       span.textContent = label;
       const input = document.createElement("input");
       input.dataset.key = key;
+      input.dataset.precisionField = "1";
       input.type = "text";
       input.inputMode = "decimal";
       input.value = formatInputNumber(value, 1);
@@ -2824,6 +2827,34 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
     card.appendChild(actions);
     backdrop.appendChild(card);
     document.body.appendChild(backdrop);
+
+    function positionPrecisionEditor() {
+      const margin = 12;
+      const vv = window.visualViewport;
+      const viewportW = vv ? vv.width : window.innerWidth;
+      const viewportH = vv ? vv.height : window.innerHeight;
+      const offsetX = vv ? vv.offsetLeft : 0;
+      const offsetY = vv ? vv.offsetTop : 0;
+      const rect = card.getBoundingClientRect();
+
+      const preferredX = Number.isFinite(screenPoint?.x) ? screenPoint.x : viewportW / 2;
+      const preferredY = Number.isFinite(screenPoint?.y) ? screenPoint.y : viewportH * 0.35;
+
+      const x = clamp(preferredX, rect.width / 2 + margin, viewportW - rect.width / 2 - margin);
+      const y = clamp(preferredY - rect.height - 24, margin, viewportH - rect.height - margin);
+
+      card.style.left = `${offsetX + x}px`;
+      card.style.top = `${offsetY + y}px`;
+      card.style.bottom = "auto";
+      card.style.transform = "translateX(-50%)";
+    }
+
+    requestAnimationFrame(positionPrecisionEditor);
+    if (window.visualViewport) {
+      const reposition = () => positionPrecisionEditor();
+      window.visualViewport.addEventListener("resize", reposition, { once: true });
+      window.visualViewport.addEventListener("scroll", reposition, { once: true });
+    }
 
     function getPreviousCardStartInfo() {
       const prevIndex = state.isoSteps.length - 1;
@@ -2944,6 +2975,17 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
 
     fields.forEach((input) => {
       input.addEventListener("input", refreshPreview);
+      input.addEventListener("pointerdown", (e) => {
+        if (window.innerWidth > 520) return;
+        e.preventDefault();
+        showCustomNumpad(input);
+        requestAnimationFrame(positionPrecisionEditor);
+      });
+      input.addEventListener("focus", () => {
+        if (window.innerWidth <= 520) {
+          requestAnimationFrame(positionPrecisionEditor);
+        }
+      });
       input.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -2958,7 +3000,14 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
     const initialStep = currentStepFromFields() || preview.step;
     state.precisionPreview = makePreviewFromStep(initialStep, getOffsetStartForPreview(initialStep));
     drawIso();
-    setTimeout(() => fields[0]?.focus(), 0);
+    setTimeout(() => {
+      if (window.innerWidth <= 520 && fields[0]) {
+        showCustomNumpad(fields[0]);
+        requestAnimationFrame(positionPrecisionEditor);
+      } else {
+        fields[0]?.focus();
+      }
+    }, 0);
   }
 
   function drawIso() {
