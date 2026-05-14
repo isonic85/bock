@@ -599,8 +599,6 @@ function normalizeLengthExpressionInput(input) {
   input.value = toDisplayLength(mm);
 }
 function isCustomNumpadField(input) {
-  if (input?.closest?.("#precisionEditorBackdrop")) return true;
-
   return [
     dom.height2Input,
     dom.angle2Input,
@@ -2575,25 +2573,47 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
       ctx.setLineDash([]);
     }
 
-    ctx.fillStyle = "rgba(2,6,23,.94)";
-    ctx.strokeStyle = preview.type === "OFF" ? "rgba(244,114,182,.85)" : "rgba(56,189,248,.85)";
-    ctx.font = "700 13px system-ui";
-    const compText = preview.components?.length
-      ? ` • ${preview.components.map((c) => `${c.dir} ${fmtMm(c.mm, 0)}`).join(" / ")}`
-      : "";
-    const text = preview.type === "OFF"
-      ? `${preview.step?.travelSticky ? "STICKY " : ""}TRAVEL ${preview.travelDir || preview.baseDir} • OFFSET ${preview.dir}${compText} • v ${preview.ang}° • off ${fmtMm(preview.off, 0)} • L ${fmtMm(preview.mm, 0)}`
-      : `${preview.dir} • ${fmtMm(preview.mm, 0)}`;
-    const mx = (a.x + b.x) / 2;
-    const my = (a.y + b.y) / 2 - 24;
-    const tw = ctx.measureText(text).width;
-    roundRectPath(ctx, mx - tw / 2 - 10, my - 12, tw + 20, 24, 10);
+    // Kompakt drag-HUD: mindre text under drag så den inte skymmer ritningen.
+    // Fulla mått visas i precision-popupen efter släpp.
+    const isOff = preview.type === "OFF";
+    const hudLines = isOff
+      ? [
+          `${preview.step?.travelSticky ? "↳ " : ""}${preview.travelDir || preview.baseDir}`,
+          `OFF ${preview.dir}`,
+          `${preview.ang}° • ${fmtMm(preview.off, 0)}`
+        ]
+      : [
+          `${preview.dir}`,
+          fmtMm(preview.mm, 0)
+        ];
+
+    ctx.font = "800 12px system-ui";
+    const lineHeight = 14;
+    const padX = 8;
+    const padY = 6;
+    const boxW = Math.max(...hudLines.map((line) => ctx.measureText(line).width)) + padX * 2;
+    const boxH = hudLines.length * lineHeight + padY * 2;
+
+    const { w, h } = ensureCanvasDpr();
+    let mx = b.x + 18;
+    let my = b.y - boxH - 18;
+
+    mx = clamp(mx, 8, w - boxW - 8);
+    my = clamp(my, 8, h - boxH - 8);
+
+    ctx.fillStyle = isOff ? "rgba(2,6,23,.72)" : "rgba(2,6,23,.68)";
+    ctx.strokeStyle = isOff ? "rgba(244,114,182,.45)" : "rgba(56,189,248,.45)";
+    ctx.lineWidth = 1;
+    roundRectPath(ctx, mx, my, boxW, boxH, 9);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = "#e5e7eb";
+
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(text, mx, my + 1);
+    hudLines.forEach((line, i) => {
+      ctx.fillStyle = i === 0 ? "#e5e7eb" : (isOff ? "#fbcfe8" : "#bae6fd");
+      ctx.fillText(line, mx + boxW / 2, my + padY + lineHeight * i + lineHeight / 2);
+    });
     ctx.restore();
   }
 
@@ -2762,7 +2782,7 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
     card.style.cssText = [
       "position:fixed",
       "left:50%",
-      "top:18vh",
+      "bottom:calc(18px + env(safe-area-inset-bottom))",
       "transform:translateX(-50%)",
       "width:min(420px,calc(100vw - 24px))",
       "padding:12px",
@@ -2785,7 +2805,6 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
       span.textContent = label;
       const input = document.createElement("input");
       input.dataset.key = key;
-      input.dataset.precisionField = "1";
       input.type = "text";
       input.inputMode = "decimal";
       input.value = formatInputNumber(value, 1);
@@ -2827,34 +2846,6 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
     card.appendChild(actions);
     backdrop.appendChild(card);
     document.body.appendChild(backdrop);
-
-    function positionPrecisionEditor() {
-      const margin = 12;
-      const vv = window.visualViewport;
-      const viewportW = vv ? vv.width : window.innerWidth;
-      const viewportH = vv ? vv.height : window.innerHeight;
-      const offsetX = vv ? vv.offsetLeft : 0;
-      const offsetY = vv ? vv.offsetTop : 0;
-      const rect = card.getBoundingClientRect();
-
-      const preferredX = Number.isFinite(screenPoint?.x) ? screenPoint.x : viewportW / 2;
-      const preferredY = Number.isFinite(screenPoint?.y) ? screenPoint.y : viewportH * 0.35;
-
-      const x = clamp(preferredX, rect.width / 2 + margin, viewportW - rect.width / 2 - margin);
-      const y = clamp(preferredY - rect.height - 24, margin, viewportH - rect.height - margin);
-
-      card.style.left = `${offsetX + x}px`;
-      card.style.top = `${offsetY + y}px`;
-      card.style.bottom = "auto";
-      card.style.transform = "translateX(-50%)";
-    }
-
-    requestAnimationFrame(positionPrecisionEditor);
-    if (window.visualViewport) {
-      const reposition = () => positionPrecisionEditor();
-      window.visualViewport.addEventListener("resize", reposition, { once: true });
-      window.visualViewport.addEventListener("scroll", reposition, { once: true });
-    }
 
     function getPreviousCardStartInfo() {
       const prevIndex = state.isoSteps.length - 1;
@@ -2975,17 +2966,6 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
 
     fields.forEach((input) => {
       input.addEventListener("input", refreshPreview);
-      input.addEventListener("pointerdown", (e) => {
-        if (window.innerWidth > 520) return;
-        e.preventDefault();
-        showCustomNumpad(input);
-        requestAnimationFrame(positionPrecisionEditor);
-      });
-      input.addEventListener("focus", () => {
-        if (window.innerWidth <= 520) {
-          requestAnimationFrame(positionPrecisionEditor);
-        }
-      });
       input.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -3000,14 +2980,7 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
     const initialStep = currentStepFromFields() || preview.step;
     state.precisionPreview = makePreviewFromStep(initialStep, getOffsetStartForPreview(initialStep));
     drawIso();
-    setTimeout(() => {
-      if (window.innerWidth <= 520 && fields[0]) {
-        showCustomNumpad(fields[0]);
-        requestAnimationFrame(positionPrecisionEditor);
-      } else {
-        fields[0]?.focus();
-      }
-    }, 0);
+    setTimeout(() => fields[0]?.focus(), 0);
   }
 
   function drawIso() {

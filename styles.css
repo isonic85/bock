@@ -1218,9 +1218,3 @@ body.numpad-open {
     padding-bottom: 135px;
   }
 }
-/* Touch-first ISO: hide old manual direction controls and step-size input UI */
-#stepMm[type="hidden"] { display: none !important; }
-.iso-mobile-status { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-@media (max-width: 380px) {
-  .iso-mobile-status { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
