@@ -216,17 +216,7 @@
             <canvas id="isoCanvas" width="600" height="360" aria-label="3D ISO canvas"></canvas>
 
             <div class="iso-mobile-status">
-              <div class="iso-status-chip iso-step-chip">
-                <span class="k">Steg (mm)</span>
-                <input
-                  id="stepMm"
-                  type="text"
-                  inputmode="decimal"
-                  enterkeyhint="done"
-                  autocomplete="off"
-                  value="100"
-                />
-              </div>
+              <input id="stepMm" type="hidden" value="100" />
 
               <div class="iso-status-chip">
                 <span class="k">Längd</span>
@@ -238,15 +228,6 @@
                   Ångra
                 </button>
               </div>
-            </div>
-
-            <div class="iso-btns iso-btns-primary">
-              <button class="iso-btn" data-dir="E">E ►</button>
-              <button class="iso-btn" data-dir="N">N ▲</button>
-              <button class="iso-btn" data-dir="UP">UP ⬆</button>
-              <button class="iso-btn" data-dir="W">W ◄</button>
-              <button class="iso-btn" data-dir="S">S ▼</button>
-              <button class="iso-btn" data-dir="DOWN">DOWN ⬇</button>
             </div>
 
             <div class="view-actions iso-main-actions">

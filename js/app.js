@@ -175,6 +175,7 @@ const DEFAULT_VIEW = Object.freeze({
     },
     pointers: new Map(),
     dragStart: null,
+    dragPipe: null,
     pinchStart: null
   };
 
@@ -831,6 +832,54 @@ function updateUnitLabels() {
   for (const line of lines) {
     const cleaned = line.replace(/\s+/g, " ").toUpperCase();
 
+
+    let mt = cleaned.match(/^OVT\s+([A-Z]+)\s+([+-]?\d+(?:[.,]\d+)?)\s+(.+)$/);
+    if (mt) {
+      const travelDir = mt[1];
+      const angle = parseFloat(mt[2].replace(",", "."));
+      const baseDir = getLastCardinalDirFromSteps(steps);
+      if (!baseDir || !dirMap[travelDir] || !(Math.abs(angle) > 0 && Math.abs(angle) < 90)) return null;
+
+      const components = [];
+      for (const token of mt[3].split("+")) {
+        const cm = token.trim().match(/^([A-Z]+):([+-]?\d+(?:[.,]\d+)?)$/);
+        if (!cm) return null;
+        const dir = cm[1];
+        const raw = parseFloat(cm[2].replace(",", "."));
+        const mm = Number.isFinite(raw) ? raw * unitFactor() : NaN;
+        if (!dirMap[dir] || !Number.isFinite(mm) || mm <= 0) return null;
+        components.push({ dir, mm });
+      }
+
+      const step = makeMultiAxisOffsetStep(baseDir, components, angle, travelDir);
+      if (!step) return null;
+      steps.push(step);
+      continue;
+    }
+
+    let mv = cleaned.match(/^OV\s+([+-]?\d+(?:[.,]\d+)?)\s+(.+)$/);
+    if (mv) {
+      const angle = parseFloat(mv[1].replace(",", "."));
+      const baseDir = getLastCardinalDirFromSteps(steps);
+      if (!baseDir || !(Math.abs(angle) > 0 && Math.abs(angle) < 90)) return null;
+
+      const components = [];
+      for (const token of mv[2].split("+")) {
+        const cm = token.trim().match(/^([A-Z]+):([+-]?\d+(?:[.,]\d+)?)$/);
+        if (!cm) return null;
+        const dir = cm[1];
+        const raw = parseFloat(cm[2].replace(",", "."));
+        const mm = Number.isFinite(raw) ? raw * unitFactor() : NaN;
+        if (!dirMap[dir] || !Number.isFinite(mm) || mm <= 0) return null;
+        components.push({ dir, mm });
+      }
+
+      const step = makeMultiAxisOffsetStep(baseDir, components, angle);
+      if (!step) return null;
+      steps.push(step);
+      continue;
+    }
+
     let m = cleaned.match(/^O\s+([A-Z]+)\s+([+-]?\d+(?:[.,]\d+)?)\s+([+-]?\d+(?:[.,]\d+)?)$/);
     if (m) {
       const offsetDir = m[1];
@@ -895,11 +944,18 @@ const mm = Number.isFinite(mmRaw) ? mmRaw * unitFactor() : NaN;
   }
 
   function syncTextareaFromSteps() {
-    dom.points3dInput.value = state.isoSteps.map((step) =>
-      step.type === "CARD"
-        ? `${step.dir} ${toDisplayLength(step.mm)}`
-        : `O ${step.dir} ${step.ang} ${toDisplayLength(step.off)}`
-    ).join("\n");
+    dom.points3dInput.value = state.isoSteps.map((step) => {
+      if (step.type === "CARD") return `${step.dir} ${toDisplayLength(step.mm)}`;
+
+      if (step.offsetComponents?.length > 1) {
+        const parts = step.offsetComponents
+          .map((c) => `${c.dir}:${toDisplayLength(c.mm)}`)
+          .join("+");
+        return `OVT ${step.travelDir || step.baseDir} ${step.ang} ${parts}`;
+      }
+
+      return `O ${step.dir} ${step.ang} ${toDisplayLength(step.off)}`;
+    }).join("\n");
   }
 
   function syncStepsFromTextarea() {
@@ -918,7 +974,7 @@ const mm = Number.isFinite(mmRaw) ? mmRaw * unitFactor() : NaN;
       const li = document.createElement("li");
      li.textContent = step.type === "CARD"
   ? `${index + 1}. ${step.dir} ${fmtMm(step.mm, 1)}`
-  : `${index + 1}. OFFSET ${step.dir} från ${step.baseDir} v:${step.ang}° off:${fmtMm(step.off, 1)} → L:${fmtMm(step.mm, 1)}${step.ccWanted ? ` • CC:${fmtMm(step.ccWanted, 1)}` : ""}${step.ccAfterWanted ? ` • CC efter:${fmtMm(step.ccAfterWanted, 1)}` : ""}${step.ccAfterBase ? ` • ref:${fmtMm(step.ccAfterBase, 1)}` : ""}`;
+  : `${index + 1}. OFFSET ${step.offsetLabel || step.dir} travel:${step.travelDir || step.baseDir} från ${step.baseDir} v:${step.ang}° off:${fmtMm(step.off, 1)} → L:${fmtMm(step.mm, 1)}${step.offsetComponents ? ` • ${step.offsetComponents.map((c) => `${c.dir}:${fmtMm(c.mm, 0)}`).join(" / ")}` : ""}${step.ccWanted ? ` • CC:${fmtMm(step.ccWanted, 1)}` : ""}${step.ccPrevAdjusted ? ` • föreg:${fmtMm(step.ccPrevAdjusted, 1)}` : ""}${step.ccAfterWanted ? ` • CC efter:${fmtMm(step.ccAfterWanted, 1)}` : ""}${step.ccAfterBase ? ` • ref:${fmtMm(step.ccAfterBase, 1)}` : ""}`;
       dom.stepsListEl.appendChild(li);
     });
         syncIsoMobileSections();
@@ -2070,6 +2126,841 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
   return box;
 }
 
+
+  function getIsoCanvasTransform() {
+    ensureCanvasDpr();
+    const k = state.view.baseScale * state.view.zoom;
+    return {
+      k,
+      toCanvas: (p) => ({
+        x: state.view.baseCx + p.x * k + state.view.panX,
+        y: state.view.baseCy + p.y * k + state.view.panY
+      })
+    };
+  }
+
+  function getCurrentIsoEndPoint3d() {
+    const points = state.isoSteps.length ? stepsToPoints(state.isoSteps) : [{ x: 0, y: 0, z: 0 }];
+    return points[points.length - 1] || { x: 0, y: 0, z: 0 };
+  }
+
+  function getCurrentIsoEndPointCanvas() {
+    const { toCanvas } = getIsoCanvasTransform();
+    return toCanvas(projectIso(getCurrentIsoEndPoint3d()));
+  }
+
+  function isNearIsoEndPoint(p, radius = 42) {
+    const end = getCurrentIsoEndPointCanvas();
+    return Math.hypot(p.x - end.x, p.y - end.y) <= radius;
+  }
+
+  function getProjectedDragDirections() {
+    const origin = projectIso({ x: 0, y: 0, z: 0 });
+    return Object.entries(dirMap).map(([dir, v]) => {
+      const p = projectIso({ x: v.dx * 100, y: v.dy * 100, z: v.dz * 100 });
+      const dx = p.x - origin.x;
+      const dy = p.y - origin.y;
+      const L = Math.hypot(dx, dy) || 1;
+      return { dir, x: dx / L, y: dy / L };
+    });
+  }
+
+  function getOppositeDir(dir) {
+    return ({ E: "W", W: "E", N: "S", S: "N", UP: "DOWN", DOWN: "UP" })[dir] || null;
+  }
+
+  function pickProjectedDirection(dx, dy, candidates) {
+    const dragLen = Math.hypot(dx, dy) || 1;
+    let best = null;
+    let bestScore = -Infinity;
+    let bestDot = -Infinity;
+
+    for (const d of getProjectedDragDirections()) {
+      if (candidates && !candidates.includes(d.dir)) continue;
+      const dot = dx * d.x + dy * d.y;
+      const score = dot / dragLen; // närmast fingrets riktning, inte bara längst projektion
+      if (score > bestScore) {
+        bestScore = score;
+        bestDot = dot;
+        best = d;
+      }
+    }
+
+    return best ? { ...best, dot: bestDot, score: bestScore } : null;
+  }
+
+  function getAllowedOffsetDirs(baseDir) {
+    const blocked = [baseDir, getOppositeDir(baseDir)];
+    return Object.keys(dirMap).filter((dir) => !blocked.includes(dir));
+  }
+
+  function makeMultiAxisOffsetStep(baseDir, components, angleDeg, travelDir = baseDir) {
+    const absAngle = Math.abs(angleDeg);
+    if (!(absAngle > 0 && absAngle < 90) || !components?.length) return null;
+
+    const forward = dirMap[travelDir] || dirMap[baseDir];
+    if (!forward) return null;
+
+    let ox = 0, oy = 0, oz = 0;
+    const clean = [];
+
+    for (const c of components) {
+      const v = dirMap[c.dir];
+      const mm = Number(c.mm);
+      if (!v || !Number.isFinite(mm) || Math.abs(mm) < 1e-6) continue;
+      ox += v.dx * mm;
+      oy += v.dy * mm;
+      oz += v.dz * mm;
+      clean.push({ dir: c.dir, mm: Math.abs(mm) });
+    }
+
+    const off = Math.hypot(ox, oy, oz);
+    if (!(off > 0)) return null;
+
+    const angleRad = degToRad(absAngle);
+    const sinA = Math.sin(angleRad);
+    const tanA = Math.tan(angleRad);
+    if (Math.abs(sinA) < 1e-9 || Math.abs(tanA) < 1e-9) return null;
+
+    const mm = off / sinA;
+    const P = off / tanA;
+    const proj = {
+      dx: forward.dx * P,
+      dy: forward.dy * P,
+      dz: forward.dz * P
+    };
+
+    const label = clean.map((c) => c.dir).join("+");
+
+    return {
+      type: "OFF",
+      dir: clean[0]?.dir || label,
+      offsetLabel: label,
+      offsetComponents: clean,
+      baseDir,
+      travelDir,
+      ang: absAngle,
+      off,
+      mm,
+      P,
+      proj,
+      offv: { dx: ox, dy: oy, dz: oz },
+      dx: proj.dx + ox,
+      dy: proj.dy + oy,
+      dz: proj.dz + oz
+    };
+  }
+
+  function solveDragInDirectionPair(dx, dy, a, b) {
+    const det = a.x * b.y - a.y * b.x;
+    if (Math.abs(det) < 1e-6) return null;
+
+    // Lös draget som positiv kombination av två skärmprojekterade ISO-riktningar.
+    // Det här gör att t.ex. S + DOWN kan bli ett faktiskt vektor-offset, inte bara en vald axel.
+    const ca = (dx * b.y - dy * b.x) / det;
+    const cb = (a.x * dy - a.y * dx) / det;
+
+    if (ca < 3 || cb < 3) return null;
+
+    const rx = a.x * ca + b.x * cb;
+    const ry = a.y * ca + b.y * cb;
+    const err = Math.hypot(dx - rx, dy - ry);
+    const len = Math.hypot(dx, dy) || 1;
+
+    return { ca, cb, err, fit: 1 - err / len };
+  }
+
+  function getMultiAxisOffsetFromDrag(dx, dy, baseDir, k) {
+    const candidates = getAllowedOffsetDirs(baseDir);
+    const dirs = getProjectedDragDirections().filter((d) => candidates.includes(d.dir));
+    const dragLen = Math.hypot(dx, dy);
+    if (dragLen < 12) return null;
+
+    let bestPair = null;
+
+    // Först: försök hitta bästa tvåaxliga offset-planet.
+    // Detta är den viktiga skillnaden mot tidigare test: vi plockar inte bara de två största dot-projektionerna,
+    // utan löser vilket riktningpar som tillsammans bäst återskapar fingerdraget.
+    for (let i = 0; i < dirs.length; i++) {
+      for (let j = i + 1; j < dirs.length; j++) {
+        const a = dirs[i];
+        const b = dirs[j];
+        if (getOppositeDir(a.dir) === b.dir) continue;
+
+        const solved = solveDragInDirectionPair(dx, dy, a, b);
+        if (!solved) continue;
+
+        const minPart = Math.min(solved.ca, solved.cb) / dragLen;
+        const maxPart = Math.max(solved.ca, solved.cb) / dragLen;
+
+        // Undvik att nästan-raka drag blir tvåaxliga av misstag.
+        if (minPart < 0.12 || maxPart > 1.6) continue;
+
+        const score = solved.fit + minPart * 0.22;
+        if (!bestPair || score > bestPair.score) {
+          bestPair = { a, b, ...solved, score };
+        }
+      }
+    }
+
+    if (bestPair && bestPair.fit > 0.55) {
+      const toMm = (px) => Math.max(5, Math.round((px / Math.max(k, 1e-6)) / 5) * 5);
+      return [
+        { dir: bestPair.a.dir, mm: toMm(bestPair.ca) },
+        { dir: bestPair.b.dir, mm: toMm(bestPair.cb) }
+      ];
+    }
+
+    // Fallback: vanlig enaxlig offset om draget är tydligt åt en riktning.
+    const picked = pickProjectedDirection(dx, dy, candidates);
+    if (!picked || picked.dot < 8 || picked.score < 0.35) return null;
+
+    return [{
+      dir: picked.dir,
+      mm: Math.max(5, Math.round((picked.dot / Math.max(k, 1e-6)) / 5) * 5)
+    }];
+  }
+
+
+  function subtractDirectionFromDrag(dx, dy, dir, pxAmount) {
+    const d = getProjectedDragDirections().find((item) => item.dir === dir);
+    if (!d) return { dx, dy };
+    return {
+      dx: dx - d.x * pxAmount,
+      dy: dy - d.y * pxAmount
+    };
+  }
+
+  function getGuidedTravelOffsetFromDrag(dx, dy, baseDir, k) {
+    const dragLen = Math.hypot(dx, dy);
+    if (dragLen < 12) return null;
+
+    const allDirs = getProjectedDragDirections();
+    const base = allDirs.find((d) => d.dir === baseDir);
+    const picked = pickProjectedDirection(dx, dy, null);
+    if (!base || !picked) return null;
+
+    const baseDot = dx * base.x + dy * base.y;
+    const baseScore = baseDot / Math.max(dragLen, 1e-6);
+
+    // Sticky travel: börja alltid med att anta att röret fortsätter i samma riktning.
+    // Bryt bara loss om fingret tydligt visar en annan axel. Det gör offseten stabilare på telefon.
+    let travelDir = baseDir;
+    let travelPx = Math.max(0, baseDot);
+    const breakLoose =
+      picked.dir !== baseDir &&
+      picked.dir !== getOppositeDir(baseDir) &&
+      picked.score > 0.82 &&
+      picked.dot > Math.max(baseDot + dragLen * 0.22, dragLen * 0.45);
+
+    if (breakLoose) {
+      travelDir = picked.dir;
+      travelPx = Math.max(0, picked.dot);
+    }
+
+    // Travel tar bara första delen av draget. Resten tolkas som offset-komponenter.
+    // Begränsningen gör att användaren kan dra snett utan att travel äter upp hela rörelsen.
+    const travelClamp = breakLoose ? 0.55 : (baseScore > 0.45 ? 0.45 : 0.28);
+    const residual = subtractDirectionFromDrag(
+      dx,
+      dy,
+      travelDir,
+      Math.min(travelPx, dragLen * travelClamp)
+    );
+
+    const offsetCandidates = Object.keys(dirMap).filter((dir) =>
+      dir !== travelDir && dir !== getOppositeDir(travelDir)
+    );
+
+    let components = getMultiAxisOffsetFromDrag(residual.dx, residual.dy, travelDir, k)
+      ?.filter((c) => offsetCandidates.includes(c.dir)) || [];
+
+    if (!components.length) {
+      const pickedOff = pickProjectedDirection(residual.dx, residual.dy, offsetCandidates);
+      if (pickedOff && pickedOff.dot > 8 && pickedOff.score > 0.25) {
+        components = [{
+          dir: pickedOff.dir,
+          mm: Math.max(5, Math.round((pickedOff.dot / Math.max(k, 1e-6)) / 5) * 5)
+        }];
+      }
+    }
+
+    if (!components.length) return null;
+
+    return { travelDir, components, sticky: !breakLoose };
+  }
+
+  function drawOffsetCandidateArrows(ctx) {
+    if (!ctx || !dom.offsetEnabled?.checked || !getLastCardinalDir()) return;
+
+    const baseDir = getLastCardinalDir();
+    const end = getCurrentIsoEndPointCanvas();
+    // Styrd frihet: föregående riktning visas starkare, övriga riktningar finns som break-out-alternativ.
+    const dirs = getProjectedDragDirections();
+
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.font = "700 11px system-ui";
+
+    for (const d of dirs) {
+      const len = 42;
+      const ex = end.x + d.x * len;
+      const ey = end.y + d.y * len;
+      const isBase = d.dir === baseDir;
+      ctx.strokeStyle = isBase ? "rgba(56,189,248,.55)" : "rgba(56,189,248,.20)";
+      ctx.lineWidth = isBase ? 4 : 2.5;
+      ctx.beginPath();
+      ctx.moveTo(end.x + d.x * 22, end.y + d.y * 22);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+
+      ctx.fillStyle = isBase ? "rgba(56,189,248,.26)" : "rgba(56,189,248,.13)";
+      ctx.strokeStyle = isBase ? "rgba(56,189,248,.65)" : "rgba(56,189,248,.30)";
+      const tw = ctx.measureText(d.dir).width;
+      roundRectPath(ctx, ex - tw / 2 - 7, ey - 10, tw + 14, 20, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#bae6fd";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(d.dir, ex, ey + 1);
+    }
+
+    ctx.restore();
+  }
+
+  function getDragPipePreview(start, current) {
+    const dx = current.x - start.x;
+    const dy = current.y - start.y;
+    const dragLen = Math.hypot(dx, dy);
+    if (dragLen < 12) return null;
+
+    const { k, toCanvas } = getIsoCanvasTransform();
+    const start3d = getCurrentIsoEndPoint3d();
+
+    const useOffset = !!dom.offsetEnabled?.checked && !!getLastCardinalDir();
+
+    if (useOffset) {
+      const values = validateOffsetInputs();
+      if (!values) return null;
+
+      const baseDir = getLastCardinalDir();
+      const free = getGuidedTravelOffsetFromDrag(dx, dy, baseDir, k);
+      if (!free) return null;
+
+      const step = makeMultiAxisOffsetStep(baseDir, free.components, values.ang, free.travelDir);
+      if (step) step.travelSticky = !!free.sticky;
+      if (!step) return null;
+
+      const proj3d = {
+        x: start3d.x + (step.proj?.dx || 0),
+        y: start3d.y + (step.proj?.dy || 0),
+        z: start3d.z + (step.proj?.dz || 0)
+      };
+      const end3d = {
+        x: start3d.x + step.dx,
+        y: start3d.y + step.dy,
+        z: start3d.z + step.dz
+      };
+
+      return {
+        type: "OFF",
+        dir: step.offsetLabel || step.dir,
+        travelDir: step.travelDir || step.baseDir,
+        baseDir,
+        ang: values.ang,
+        off: step.off,
+        components: step.offsetComponents || [],
+        mm: step.mm,
+        P: step.P,
+        step,
+        startCanvas: toCanvas(projectIso(start3d)),
+        projCanvas: toCanvas(projectIso(proj3d)),
+        endCanvas: toCanvas(projectIso(end3d))
+      };
+    }
+
+    const picked = pickProjectedDirection(dx, dy, null);
+    if (!picked || picked.dot < 8) return null;
+
+    const rawMm = picked.dot / Math.max(k, 1e-6);
+    const snappedMm = Math.max(5, Math.round(rawMm / 5) * 5);
+    const v = dirMap[picked.dir];
+    const end3d = {
+      x: start3d.x + v.dx * snappedMm,
+      y: start3d.y + v.dy * snappedMm,
+      z: start3d.z + v.dz * snappedMm
+    };
+
+    return {
+      type: "CARD",
+      dir: picked.dir,
+      mm: snappedMm,
+      startCanvas: toCanvas(projectIso(start3d)),
+      endCanvas: toCanvas(projectIso(end3d))
+    };
+  }
+
+  function drawIsoEndGrip(ctx, p, label = "Dra här") {
+    ctx.save();
+    ctx.fillStyle = "rgba(249,115,22,.22)";
+    ctx.strokeStyle = "rgba(249,115,22,.95)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(2,6,23,.92)";
+    ctx.strokeStyle = "rgba(249,115,22,.65)";
+    ctx.font = "12px system-ui";
+    const tw = ctx.measureText(label).width;
+    roundRectPath(ctx, p.x - tw / 2 - 9, p.y - 42, tw + 18, 22, 9);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#f8fafc";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, p.x, p.y - 31);
+    ctx.restore();
+  }
+
+  function drawDragPipePreview(ctx) {
+    const preview = state.dragPipe?.preview;
+    if (!preview) return;
+
+    const { startCanvas: a, endCanvas: b } = preview;
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    if (preview.type === "OFF" && preview.projCanvas) {
+      const p = preview.projCanvas;
+
+      ctx.setLineDash([8, 6]);
+      ctx.strokeStyle = "rgba(56,189,248,.55)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+      ctx.strokeStyle = "rgba(244,114,182,.98)";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = "rgba(250,204,21,.85)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      ctx.setLineDash([8, 6]);
+      ctx.strokeStyle = "rgba(56,189,248,.95)";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    ctx.fillStyle = "rgba(2,6,23,.94)";
+    ctx.strokeStyle = preview.type === "OFF" ? "rgba(244,114,182,.85)" : "rgba(56,189,248,.85)";
+    ctx.font = "700 13px system-ui";
+    const compText = preview.components?.length
+      ? ` • ${preview.components.map((c) => `${c.dir} ${fmtMm(c.mm, 0)}`).join(" / ")}`
+      : "";
+    const text = preview.type === "OFF"
+      ? `${preview.step?.travelSticky ? "STICKY " : ""}TRAVEL ${preview.travelDir || preview.baseDir} • OFFSET ${preview.dir}${compText} • v ${preview.ang}° • off ${fmtMm(preview.off, 0)} • L ${fmtMm(preview.mm, 0)}`
+      : `${preview.dir} • ${fmtMm(preview.mm, 0)}`;
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2 - 24;
+    const tw = ctx.measureText(text).width;
+    roundRectPath(ctx, mx - tw / 2 - 10, my - 12, tw + 20, 24, 10);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#e5e7eb";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, mx, my + 1);
+    ctx.restore();
+  }
+
+
+
+  function formatInputNumber(v, decimals = 1) {
+    if (!Number.isFinite(v)) return "";
+    const fixed = Number(v).toFixed(decimals).replace(/\.0+$/, "").replace(/(,?\d*?)0+$/, "$1");
+    return fixed.replace(".", ",");
+  }
+
+  function parseEditorNumber(input, fallback = NaN) {
+    const v = parseFloat(String(input?.value ?? "").replace(",", "."));
+    return Number.isFinite(v) ? v * unitFactor() : fallback;
+  }
+
+  function removePrecisionEditor() {
+    const old = document.getElementById("precisionEditorBackdrop");
+    if (old) old.remove();
+    state.precisionPreview = null;
+    drawIso();
+  }
+
+  function scaleOffsetComponentsToTotal(components, targetOffsetMm) {
+    const target = Number(targetOffsetMm);
+    if (!components?.length || !Number.isFinite(target) || target <= 0) return [];
+
+    let ox = 0;
+    let oy = 0;
+    let oz = 0;
+
+    for (const c of components) {
+      const v = dirMap[c.dir];
+      const mm = Number(c.mm);
+      if (!v || !Number.isFinite(mm) || mm <= 0) continue;
+      ox += v.dx * mm;
+      oy += v.dy * mm;
+      oz += v.dz * mm;
+    }
+
+    const current = Math.hypot(ox, oy, oz);
+    if (!(current > 0)) return [];
+
+    const factor = target / current;
+    return components
+      .map((c) => ({ dir: c.dir, mm: Math.max(0.001, Number(c.mm) * factor) }))
+      .filter((c) => Number.isFinite(c.mm) && c.mm > 0);
+  }
+
+  function makeStepWithExactProjection(baseDir, components, travelDir, projectionMm) {
+    const forward = dirMap[travelDir] || dirMap[baseDir];
+    if (!forward || !components?.length) return null;
+
+    let ox = 0;
+    let oy = 0;
+    let oz = 0;
+    const clean = [];
+
+    for (const c of components) {
+      const v = dirMap[c.dir];
+      const mm = Number(c.mm);
+      if (!v || !Number.isFinite(mm) || Math.abs(mm) < 1e-6) continue;
+      ox += v.dx * mm;
+      oy += v.dy * mm;
+      oz += v.dz * mm;
+      clean.push({ dir: c.dir, mm: Math.abs(mm) });
+    }
+
+    const off = Math.hypot(ox, oy, oz);
+    const P = Math.max(0, Number(projectionMm) || 0);
+    if (!(off > 0) || !(P > 0)) return null;
+
+    const angleDeg = radToDeg(Math.atan2(off, P));
+    const mm = Math.hypot(off, P);
+    const proj = {
+      dx: forward.dx * P,
+      dy: forward.dy * P,
+      dz: forward.dz * P
+    };
+    const label = clean.map((c) => c.dir).join("+");
+
+    return {
+      type: "OFF",
+      dir: clean[0]?.dir || label,
+      offsetLabel: label,
+      offsetComponents: clean,
+      baseDir,
+      travelDir,
+      ang: angleDeg,
+      off,
+      mm,
+      P,
+      proj,
+      offv: { dx: ox, dy: oy, dz: oz },
+      dx: proj.dx + ox,
+      dy: proj.dy + oy,
+      dz: proj.dz + oz
+    };
+  }
+
+  function makePreviewFromStep(step, start3d = getCurrentIsoEndPoint3d()) {
+    const { toCanvas } = getIsoCanvasTransform();
+
+    if (step.type === "CARD") {
+      const v = dirMap[step.dir];
+      const end3d = {
+        x: start3d.x + v.dx * step.mm,
+        y: start3d.y + v.dy * step.mm,
+        z: start3d.z + v.dz * step.mm
+      };
+      return {
+        type: "CARD",
+        dir: step.dir,
+        mm: step.mm,
+        startCanvas: toCanvas(projectIso(start3d)),
+        endCanvas: toCanvas(projectIso(end3d)),
+        step
+      };
+    }
+
+    const proj3d = {
+      x: start3d.x + (step.proj?.dx || 0),
+      y: start3d.y + (step.proj?.dy || 0),
+      z: start3d.z + (step.proj?.dz || 0)
+    };
+    const end3d = {
+      x: start3d.x + step.dx,
+      y: start3d.y + step.dy,
+      z: start3d.z + step.dz
+    };
+    return {
+      type: "OFF",
+      dir: step.offsetLabel || step.dir,
+      travelDir: step.travelDir || step.baseDir,
+      baseDir: step.baseDir,
+      ang: step.ang,
+      off: step.off,
+      components: step.offsetComponents || [],
+      mm: step.mm,
+      P: step.P,
+      step,
+      startCanvas: toCanvas(projectIso(start3d)),
+      projCanvas: toCanvas(projectIso(proj3d)),
+      endCanvas: toCanvas(projectIso(end3d))
+    };
+  }
+
+  function drawPrecisionPipePreview(ctx) {
+    if (!state.precisionPreview) return;
+    const oldDrag = state.dragPipe;
+    state.dragPipe = { preview: state.precisionPreview };
+    drawDragPipePreview(ctx);
+    state.dragPipe = oldDrag;
+  }
+
+  function openPrecisionEditor(preview, screenPoint = null) {
+    if (!preview?.step) return;
+
+    removePrecisionEditor();
+    const start3d = getCurrentIsoEndPoint3d();
+    const backdrop = document.createElement("div");
+    backdrop.id = "precisionEditorBackdrop";
+    backdrop.style.cssText = "position:fixed;inset:0;z-index:1400;pointer-events:none;";
+
+    const card = document.createElement("div");
+    card.style.cssText = [
+      "position:fixed",
+      "left:50%",
+      "bottom:calc(18px + env(safe-area-inset-bottom))",
+      "transform:translateX(-50%)",
+      "width:min(420px,calc(100vw - 24px))",
+      "padding:12px",
+      "border:1px solid rgba(148,163,184,.35)",
+      "border-radius:16px",
+      "background:rgba(15,23,42,.98)",
+      "box-shadow:0 18px 45px rgba(0,0,0,.45)",
+      "color:#e5e7eb",
+      "pointer-events:auto",
+      "font:13px system-ui"
+    ].join(";");
+
+    const title = preview.type === "OFF" ? "Exakt offset" : "Exakt längd";
+    card.innerHTML = `<div style="font-weight:800;margin-bottom:8px;">${title}</div>`;
+
+    function addField(label, value, key) {
+      const wrap = document.createElement("label");
+      wrap.style.cssText = "display:grid;grid-template-columns:1fr 110px;gap:8px;align-items:center;margin:6px 0;color:#cbd5f5;";
+      const span = document.createElement("span");
+      span.textContent = label;
+      const input = document.createElement("input");
+      input.dataset.key = key;
+      input.type = "text";
+      input.inputMode = "decimal";
+      input.value = formatInputNumber(value, 1);
+      input.style.cssText = "width:100%;padding:8px 10px;border:1px solid #4b5563;border-radius:10px;background:#020617;color:#e5e7eb;font-weight:800;text-align:right;";
+      wrap.append(span, input);
+      card.appendChild(wrap);
+      return input;
+    }
+
+    let fields = [];
+    if (preview.type === "CARD") {
+      fields.push(addField(`Längd ${preview.dir}`, preview.mm, "length"));
+    } else {
+      const compLabel = (preview.components || preview.step.offsetComponents || [])
+        .map((c) => c.dir)
+        .join(" + ") || (preview.dir || "offset");
+
+      const info = document.createElement("div");
+      info.dataset.role = "offsetInfo";
+      info.style.cssText = "margin:-2px 0 8px;color:#93c5fd;font-size:12px;line-height:1.35;";
+      info.textContent = `Riktning från drag: ${compLabel}. Appen räknar projektion och L automatiskt.`;
+      card.appendChild(info);
+
+      fields.push(addField(`Offset ${compLabel}`, preview.off || preview.step.off, "offsetTotal"));
+      fields.push(addField("Vinkel °", preview.ang || preview.step.ang, "angleDeg"));
+
+      const ccInput = addField("C.C från föregående start", "", "ccFromPrevStart");
+      ccInput.placeholder = "Valfritt";
+      ccInput.value = "";
+      fields.push(ccInput);
+    }
+
+    const actions = document.createElement("div");
+    actions.style.cssText = "display:flex;gap:8px;justify-content:flex-end;margin-top:10px;";
+    actions.innerHTML = `
+      <button type="button" data-action="cancel" style="padding:9px 12px;border:1px solid #4b5563;border-radius:10px;background:transparent;color:#e5e7eb;font-weight:800;">Avbryt</button>
+      <button type="button" data-action="ok" style="padding:9px 14px;border:0;border-radius:10px;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;font-weight:900;">OK</button>
+    `;
+    card.appendChild(actions);
+    backdrop.appendChild(card);
+    document.body.appendChild(backdrop);
+
+    function getPreviousCardStartInfo() {
+      const prevIndex = state.isoSteps.length - 1;
+      const prev = state.isoSteps[prevIndex];
+      if (!prev || prev.type !== "CARD") return null;
+
+      const points = stepsToPoints(state.isoSteps);
+      const start = points[prevIndex];
+      const dir = dirMap[prev.dir];
+      if (!start || !dir) return null;
+
+      return { prev, prevIndex, start, dir };
+    }
+
+    function getOffsetStartForPreview(step) {
+      if (!step?.__ccNewPrevLen) return start3d;
+
+      const info = getPreviousCardStartInfo();
+      if (!info) return start3d;
+
+      return {
+        x: info.start.x + info.dir.dx * step.__ccNewPrevLen,
+        y: info.start.y + info.dir.dy * step.__ccNewPrevLen,
+        z: info.start.z + info.dir.dz * step.__ccNewPrevLen
+      };
+    }
+
+    function applyCcAdjustmentBeforeCommit(step) {
+      if (!step?.__ccNewPrevLen) return true;
+
+      const info = getPreviousCardStartInfo();
+      if (!info || info.prevIndex < 0) return false;
+
+      info.prev.mm = parseFloat(step.__ccNewPrevLen.toFixed(3));
+      step.ccWanted = step.__ccWanted;
+      step.ccPrevStart = true;
+      step.ccPrevOriginal = step.__ccPrevOriginal;
+      step.ccPrevAdjusted = info.prev.mm;
+
+      delete step.__ccNewPrevLen;
+      delete step.__ccWanted;
+      delete step.__ccPrevOriginal;
+      return true;
+    }
+
+    function currentStepFromFields() {
+      if (preview.type === "CARD") {
+        const length = parseEditorNumber(card.querySelector('[data-key="length"]'), preview.mm);
+        if (!Number.isFinite(length) || length <= 0) return null;
+        return { type: "CARD", dir: preview.dir, mm: length };
+      }
+
+      const baseDir = preview.baseDir || preview.step.baseDir || getLastCardinalDir();
+      const travelDir = preview.travelDir || preview.step.travelDir || baseDir;
+      const sourceComponents = preview.components || preview.step.offsetComponents || [];
+      const offsetTotal = parseEditorNumber(card.querySelector('[data-key="offsetTotal"]'), preview.off || preview.step.off);
+      const angleInput = card.querySelector('[data-key="angleDeg"]');
+      const angleRaw = parseFloat(String(angleInput?.value ?? "").replace(",", "."));
+
+      if (!Number.isFinite(offsetTotal) || offsetTotal <= 0) return null;
+      if (!Number.isFinite(angleRaw) || angleRaw <= 0 || angleRaw >= 90) return null;
+
+      const components = scaleOffsetComponentsToTotal(sourceComponents, offsetTotal);
+      if (!components.length) return null;
+
+      const step = makeMultiAxisOffsetStep(baseDir, components, angleRaw, travelDir);
+      if (!step) return null;
+
+      const ccInput = card.querySelector('[data-key="ccFromPrevStart"]');
+      const ccRaw = String(ccInput?.value ?? "").trim();
+      if (ccRaw) {
+        const ccWanted = parseEditorNumber(ccInput, NaN);
+        const info = getPreviousCardStartInfo();
+        if (!info || !Number.isFinite(ccWanted) || ccWanted <= 0) return null;
+
+        const newPrevLen = ccWanted - step.P;
+        if (!Number.isFinite(newPrevLen) || newPrevLen <= 0) return null;
+
+        step.__ccNewPrevLen = newPrevLen;
+        step.__ccWanted = ccWanted;
+        step.__ccPrevOriginal = info.prev.mm;
+        step.ccWanted = ccWanted;
+        step.ccPrevStart = true;
+      }
+
+      return step;
+    }
+
+    function refreshPreview() {
+      const step = currentStepFromFields();
+      if (!step) return;
+      const p = makePreviewFromStep(step, getOffsetStartForPreview(step));
+      state.precisionPreview = p;
+
+      const info = card.querySelector('[data-role="offsetInfo"]');
+      if (preview.type === "OFF" && p?.step && info) {
+        const compText = (p.step.offsetComponents || [])
+          .map((c) => `${c.dir} ${fmtMm(c.mm, 0)}`)
+          .join(" / ");
+        const ccText = p.step.ccWanted ? ` • C.C ${fmtMm(p.step.ccWanted, 0)}` : "";
+        info.textContent = `${compText} • P ${fmtMm(p.step.P, 0)} • L ${fmtMm(p.step.mm, 0)}${ccText}`;
+      }
+      drawIso();
+    }
+
+    function commitCurrentStep() {
+      const step = currentStepFromFields();
+      if (!step) return;
+      if (!applyCcAdjustmentBeforeCommit(step)) return;
+
+      state.isoSteps.push(step);
+      renderStepsList();
+      syncTextareaFromSteps();
+      fitView(false);
+      markDirty(true);
+      removePrecisionEditor();
+    }
+
+    fields.forEach((input) => {
+      input.addEventListener("input", refreshPreview);
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commitCurrentStep();
+        }
+      });
+    });
+
+    actions.querySelector('[data-action="cancel"]').onclick = removePrecisionEditor;
+    actions.querySelector('[data-action="ok"]').onclick = commitCurrentStep;
+
+    const initialStep = currentStepFromFields() || preview.step;
+    state.precisionPreview = makePreviewFromStep(initialStep, getOffsetStartForPreview(initialStep));
+    drawIso();
+    setTimeout(() => fields[0]?.focus(), 0);
+  }
+
   function drawIso() {
     if (!ctxIso) return;
 
@@ -2099,6 +2990,10 @@ if (!state.isoSteps.length) {
   };
 
   drawEmptyIsoGrid(ctxIso, toCanvas, 2000, 50);
+  drawOffsetCandidateArrows(ctxIso);
+  drawDragPipePreview(ctxIso);
+  drawPrecisionPipePreview(ctxIso);
+  drawIsoEndGrip(ctxIso, toCanvas(projectIso({ x: 0, y: 0, z: 0 })), "Dra start");
   drawMiniAxes();
   renderZeroBendList(null);
   return;
@@ -2218,6 +3113,10 @@ const placedLabels = [];
         ctxIso.fill();
       }
     });
+
+    drawDragPipePreview(ctxIso);
+    drawPrecisionPipePreview(ctxIso);
+    drawIsoEndGrip(ctxIso, toCanvas(projectIso(points3d[points3d.length - 1])), "Dra vidare");
 
     if (!state.showDims) return;
 
@@ -2699,6 +3598,14 @@ on(dom.points3dInput, "blur", () => {
       const p = getCanvasPointFromEvent(e);
       state.pointers.set(e.pointerId, p);
 
+      if (state.pointers.size === 1 && isNearIsoEndPoint(p)) {
+        state.dragPipe = { pointerId: e.pointerId, start: p, current: p, preview: null };
+        state.dragStart = null;
+        state.pinchStart = null;
+        drawIso();
+        return;
+      }
+
       if (state.pointers.size === 1) {
         state.dragStart = {
           x: p.x,
@@ -2734,6 +3641,13 @@ on(dom.points3dInput, "blur", () => {
 
       const p = getCanvasPointFromEvent(e);
       state.pointers.set(e.pointerId, p);
+
+      if (state.dragPipe?.pointerId === e.pointerId) {
+        state.dragPipe.current = p;
+        state.dragPipe.preview = getDragPipePreview(state.dragPipe.start, p);
+        drawIso();
+        return;
+      }
 
       if (state.pointers.size === 1 && state.dragStart) {
         const dx = p.x - state.dragStart.x;
@@ -2786,6 +3700,23 @@ on(dom.points3dInput, "blur", () => {
 
     const endPointer = (e) => {
       if (!state.pointers.has(e.pointerId)) return;
+
+      if (state.dragPipe?.pointerId === e.pointerId) {
+        const preview = state.dragPipe.preview;
+        state.dragPipe = null;
+        state.pointers.delete(e.pointerId);
+
+        if (preview && preview.mm >= 5) {
+          if (!preview.step && preview.type === "CARD") preview.step = { type: "CARD", dir: preview.dir, mm: preview.mm };
+          openPrecisionEditor(preview, { x: e.clientX, y: e.clientY });
+        }
+
+        state.dragStart = null;
+        state.pinchStart = null;
+        drawIso();
+        return;
+      }
+
       state.pointers.delete(e.pointerId);
 
       if (state.pointers.size === 0) {
