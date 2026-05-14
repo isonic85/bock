@@ -9,6 +9,10 @@
   <title>Rörbockning – Pythagoras & vinkel</title>
 
   <link rel="stylesheet" href="styles.css" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#020617" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Rörbockning" />
 </head>
 <body>
 <main class="app">
@@ -472,10 +476,20 @@
     ©Copyright 2026 Niklas Persson, v1.0
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="js/jspdf.umd.min.js" defer></script>
   <script src="js/utils.js" defer></script>
   <script src="js/archive.js" defer></script>
   <script src="js/pdf.js" defer></script>
   <script src="js/app.js" defer></script>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js").catch((err) => {
+          console.warn("Service worker kunde inte registreras:", err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
