@@ -1223,3 +1223,48 @@ body.numpad-open {
 .iso-btns-primary,
 .iso-step-chip { display: none !important; }
 #mode-iso3d input[type="hidden"]#stepMm { display: none !important; }
+
+
+/* FIX: 3D ISO tabs as bottom bar, all mobile/tablet/PWA widths */
+body.iso-mode-active {
+  padding-bottom: calc(132px + env(safe-area-inset-bottom));
+}
+
+body.iso-mode-active .top-bar {
+  position: fixed !important;
+  left: max(10px, env(safe-area-inset-left)) !important;
+  right: max(10px, env(safe-area-inset-right)) !important;
+  bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+  z-index: 1100 !important;
+  width: auto !important;
+  max-width: 760px;
+  margin: 0 auto !important;
+  padding: 8px 10px !important;
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.97);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+}
+
+body.iso-mode-active .top-bar h1 {
+  display: none !important;
+}
+
+body.iso-mode-active .top-bar .mode-tabs {
+  margin: 0 !important;
+  min-height: 40px;
+}
+
+body.iso-mode-active .app {
+  padding-bottom: calc(132px + env(safe-area-inset-bottom)) !important;
+}
+
+body.iso-mode-active.numpad-open .top-bar {
+  display: none !important;
+}
+
+body.iso-mode-active.numpad-open,
+body.iso-mode-active.numpad-open .app {
+  padding-bottom: calc(300px + env(safe-area-inset-bottom)) !important;
+}
