@@ -984,7 +984,7 @@ svg {
   }
 
   .iso-mobile-status {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .iso-main-actions {
@@ -1218,3 +1218,8 @@ body.numpad-open {
     padding-bottom: 135px;
   }
 }
+/* Touch-only ISO: old direction buttons and step chip are intentionally hidden/unused. */
+.iso-btns,
+.iso-btns-primary,
+.iso-step-chip { display: none !important; }
+#mode-iso3d input[type="hidden"]#stepMm { display: none !important; }

@@ -599,6 +599,8 @@ function normalizeLengthExpressionInput(input) {
   input.value = toDisplayLength(mm);
 }
 function isCustomNumpadField(input) {
+  if (input?.closest?.("#precisionEditorBackdrop")) return true;
+
   return [
     dom.height2Input,
     dom.angle2Input,
@@ -2526,96 +2528,89 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
     ctx.restore();
   }
 
-  function drawDragPipePreview(ctx) {
-    const preview = state.dragPipe?.preview;
-    if (!preview) return;
+ function drawDragPipePreview(ctx) {
+  const preview = state.dragPipe?.preview;
+  if (!preview) return;
 
-    const { startCanvas: a, endCanvas: b } = preview;
-    ctx.save();
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+  const { startCanvas: a, endCanvas: b } = preview;
 
-    if (preview.type === "OFF" && preview.projCanvas) {
-      const p = preview.projCanvas;
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
 
-      ctx.setLineDash([8, 6]);
-      ctx.strokeStyle = "rgba(56,189,248,.55)";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
+  if (preview.type === "OFF" && preview.projCanvas) {
+    const p = preview.projCanvas;
 
-      ctx.setLineDash([]);
-      ctx.strokeStyle = "rgba(244,114,182,.98)";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-
-      ctx.setLineDash([5, 5]);
-      ctx.strokeStyle = "rgba(250,204,21,.85)";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    } else {
-      ctx.setLineDash([8, 6]);
-      ctx.strokeStyle = "rgba(56,189,248,.95)";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    // Kompakt drag-HUD: mindre text under drag så den inte skymmer ritningen.
-    // Fulla mått visas i precision-popupen efter släpp.
-    const isOff = preview.type === "OFF";
-    const hudLines = isOff
-      ? [
-          `${preview.step?.travelSticky ? "↳ " : ""}${preview.travelDir || preview.baseDir}`,
-          `OFF ${preview.dir}`,
-          `${preview.ang}° • ${fmtMm(preview.off, 0)}`
-        ]
-      : [
-          `${preview.dir}`,
-          fmtMm(preview.mm, 0)
-        ];
-
-    ctx.font = "800 12px system-ui";
-    const lineHeight = 14;
-    const padX = 8;
-    const padY = 6;
-    const boxW = Math.max(...hudLines.map((line) => ctx.measureText(line).width)) + padX * 2;
-    const boxH = hudLines.length * lineHeight + padY * 2;
-
-    const { w, h } = ensureCanvasDpr();
-    let mx = b.x + 18;
-    let my = b.y - boxH - 18;
-
-    mx = clamp(mx, 8, w - boxW - 8);
-    my = clamp(my, 8, h - boxH - 8);
-
-    ctx.fillStyle = isOff ? "rgba(2,6,23,.72)" : "rgba(2,6,23,.68)";
-    ctx.strokeStyle = isOff ? "rgba(244,114,182,.45)" : "rgba(56,189,248,.45)";
-    ctx.lineWidth = 1;
-    roundRectPath(ctx, mx, my, boxW, boxH, 9);
-    ctx.fill();
+    // projektion
+    ctx.setLineDash([8, 6]);
+    ctx.strokeStyle = "rgba(56,189,248,.75)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(p.x, p.y);
     ctx.stroke();
 
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    hudLines.forEach((line, i) => {
-      ctx.fillStyle = i === 0 ? "#e5e7eb" : (isOff ? "#fbcfe8" : "#bae6fd");
-      ctx.fillText(line, mx + boxW / 2, my + padY + lineHeight * i + lineHeight / 2);
-    });
-    ctx.restore();
+    // offset-del
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "rgba(244,114,182,.95)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    // total linje svagt
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = "rgba(250,204,21,.45)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  } else {
+    ctx.setLineDash([8, 6]);
+    ctx.strokeStyle = "rgba(56,189,248,.95)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
+
+  // liten punkt i änden, inte stor ring
+  ctx.fillStyle = "#f97316";
+  ctx.beginPath();
+  ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // kompakt ruta i hörnet istället för mitt på ritningen
+  const text = preview.type === "OFF"
+    ? `${preview.travelDir || preview.baseDir} → Offset ${preview.dir} | L ${fmtMm(preview.mm, 0)}`
+    : `${preview.dir} | ${fmtMm(preview.mm, 0)}`;
+
+  ctx.font = "700 12px system-ui";
+  const pad = 8;
+  const boxH = 24;
+  const boxW = ctx.measureText(text).width + pad * 2;
+  const x = 10;
+  const y = 84;
+
+  ctx.fillStyle = "rgba(2,6,23,.86)";
+  ctx.strokeStyle = "rgba(148,163,184,.35)";
+  ctx.lineWidth = 1;
+  roundRectPath(ctx, x, y, boxW, boxH, 9);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#e5e7eb";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + pad, y + boxH / 2 + 1);
+
+  ctx.restore();
+}
 
 
 
@@ -2782,7 +2777,7 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
     card.style.cssText = [
       "position:fixed",
       "left:50%",
-      "bottom:calc(18px + env(safe-area-inset-bottom))",
+      "top:18vh",
       "transform:translateX(-50%)",
       "width:min(420px,calc(100vw - 24px))",
       "padding:12px",
@@ -2805,6 +2800,7 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
       span.textContent = label;
       const input = document.createElement("input");
       input.dataset.key = key;
+      input.dataset.precisionField = "1";
       input.type = "text";
       input.inputMode = "decimal";
       input.value = formatInputNumber(value, 1);
@@ -2831,9 +2827,12 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
       fields.push(addField(`Offset ${compLabel}`, preview.off || preview.step.off, "offsetTotal"));
       fields.push(addField("Vinkel °", preview.ang || preview.step.ang, "angleDeg"));
 
-      const ccInput = addField("C.C från föregående start", "", "ccFromPrevStart");
+      const prev = state.isoSteps[state.isoSteps.length - 1];
+      const ccDefault = prev?.type === "CARD"
+        ? (prev.mm || 0) + (preview.step?.P || preview.P || 0)
+        : "";
+      const ccInput = addField("C.C från föregående start", ccDefault, "ccFromPrevStart");
       ccInput.placeholder = "Valfritt";
-      ccInput.value = "";
       fields.push(ccInput);
     }
 
@@ -2846,6 +2845,30 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
     card.appendChild(actions);
     backdrop.appendChild(card);
     document.body.appendChild(backdrop);
+
+    function positionPrecisionEditor() {
+      const margin = 12;
+      const vv = window.visualViewport;
+      const viewportW = vv ? vv.width : window.innerWidth;
+      const viewportH = vv ? vv.height : window.innerHeight;
+      const offsetX = vv ? vv.offsetLeft : 0;
+      const offsetY = vv ? vv.offsetTop : 0;
+      const rect = card.getBoundingClientRect();
+      const preferredX = Number.isFinite(screenPoint?.x) ? screenPoint.x : viewportW / 2;
+      const preferredY = Number.isFinite(screenPoint?.y) ? screenPoint.y : viewportH * 0.35;
+      const x = clamp(preferredX, rect.width / 2 + margin, viewportW - rect.width / 2 - margin);
+      const y = clamp(preferredY - rect.height - 24, margin, viewportH - rect.height - margin);
+      card.style.left = `${offsetX + x}px`;
+      card.style.top = `${offsetY + y}px`;
+      card.style.bottom = "auto";
+      card.style.transform = "translateX(-50%)";
+    }
+
+    requestAnimationFrame(positionPrecisionEditor);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", positionPrecisionEditor, { once: true });
+      window.visualViewport.addEventListener("scroll", positionPrecisionEditor, { once: true });
+    }
 
     function getPreviousCardStartInfo() {
       const prevIndex = state.isoSteps.length - 1;
@@ -2966,6 +2989,15 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
 
     fields.forEach((input) => {
       input.addEventListener("input", refreshPreview);
+      input.addEventListener("pointerdown", (e) => {
+        if (window.innerWidth > 520) return;
+        e.preventDefault();
+        showCustomNumpad(input);
+        requestAnimationFrame(positionPrecisionEditor);
+      });
+      input.addEventListener("focus", () => {
+        if (window.innerWidth <= 520) requestAnimationFrame(positionPrecisionEditor);
+      });
       input.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -2980,7 +3012,14 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
     const initialStep = currentStepFromFields() || preview.step;
     state.precisionPreview = makePreviewFromStep(initialStep, getOffsetStartForPreview(initialStep));
     drawIso();
-    setTimeout(() => fields[0]?.focus(), 0);
+    setTimeout(() => {
+      if (window.innerWidth <= 520 && fields[0]) {
+        showCustomNumpad(fields[0]);
+        requestAnimationFrame(positionPrecisionEditor);
+      } else {
+        fields[0]?.focus();
+      }
+    }, 0);
   }
 
   function drawIso() {
