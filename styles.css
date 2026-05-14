@@ -1268,3 +1268,12 @@ body.iso-mode-active.numpad-open,
 body.iso-mode-active.numpad-open .app {
   padding-bottom: calc(300px + env(safe-area-inset-bottom)) !important;
 }
+
+
+.pdf-note-field {
+  margin-top: 8px;
+}
+
+#drawingInfoDetails input::placeholder {
+  color: rgba(156, 163, 175, 0.7);
+}

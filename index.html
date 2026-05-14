@@ -341,6 +341,35 @@
             </div>
           </details>
 
+
+          <details class="iso-section" id="drawingInfoDetails">
+            <summary>Ritningsinfo / PDF</summary>
+            <div class="iso-section-body">
+              <div class="offset-grid">
+                <div class="field mb0">
+                  <label for="drawingTitle">Rubrik</label>
+                  <input id="drawingTitle" type="text" value="" placeholder="T.ex. Schakt plan 2" autocomplete="off" />
+                </div>
+                <div class="field mb0">
+                  <label for="drawingNo">Ritningsnummer</label>
+                  <input id="drawingNo" type="text" value="" placeholder="Valfritt" autocomplete="off" />
+                </div>
+                <div class="field mb0">
+                  <label for="drawingProject">Projekt / plats</label>
+                  <input id="drawingProject" type="text" value="" placeholder="Valfritt" autocomplete="off" />
+                </div>
+                <div class="field mb0">
+                  <label for="drawingMaterial">Material / dimension</label>
+                  <input id="drawingMaterial" type="text" value="" placeholder="T.ex. Cu 28 / Alupex 32" autocomplete="off" />
+                </div>
+              </div>
+              <div class="field mb0 pdf-note-field">
+                <label for="drawingNote">Notering till PDF</label>
+                <input id="drawingNote" type="text" value="" placeholder="Valfri kommentar" autocomplete="off" />
+              </div>
+            </div>
+          </details>
+
           <details class="iso-section" id="manualStepsDetails">
             <summary>Manuell steg-lista</summary>
             <div class="iso-section-body">
@@ -473,12 +502,13 @@
   </div>
 
   <footer class="app-footer">
-    ©Copyright 2026 Niklas Persson, v1.0
+    ©Copyright 2026 Niklas Persson, v1.1
   </footer>
 
   <script src="js/jspdf.umd.min.js" defer></script>
   <script src="js/utils.js" defer></script>
   <script src="js/archive.js" defer></script>
+  <script src="js/project.js" defer></script>
   <script src="js/pdf.js" defer></script>
   <script src="js/app.js" defer></script>
 

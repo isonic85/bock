@@ -1,4 +1,4 @@
-const CACHE_NAME = "rorbockning-offline-v3";
+const CACHE_NAME = "rorbockning-offline-v4";
 const OFFLINE_ASSETS = [
   "./",
   "./index.html",
@@ -6,6 +6,7 @@ const OFFLINE_ASSETS = [
   "./manifest.json",
   "./js/utils.js",
   "./js/archive.js",
+  "./js/project.js",
   "./js/pdf.js",
   "./js/app.js",
   "./js/jspdf.umd.min.js",

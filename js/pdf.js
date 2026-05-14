@@ -337,6 +337,7 @@ const {
         const zeroRowsResult = computeZeroPointBendRows(geometry, state.isoSteps);
 
         const doc = new JsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+        const pdfMeta = window.AppProject?.collectMeta?.(state) || { title: "ISO-ritning", date: new Date().toLocaleDateString("sv-SE") };
 
         const pageW = doc.internal.pageSize.getWidth();
         const pageH = doc.internal.pageSize.getHeight();
@@ -390,18 +391,31 @@ const {
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
-        doc.text("ISO-ritning", drawX0 + 4, drawY0 + 6);
+        doc.text(pdfMeta.title || "ISO-ritning", drawX0 + 4, drawY0 + 6);
 
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        doc.text(`Punkter: ${pts3d.length}`, drawX0 + 4, drawY0 + 11);
-        doc.text(`Total längd (3D): ${fmtMm(geometry.totalLen, 1)}`, drawX0 + 4, drawY0 + 15);
+        doc.setFontSize(8.5);
+        const metaLeft = [
+          pdfMeta.project ? `Projekt: ${pdfMeta.project}` : "",
+          pdfMeta.material ? `Material: ${pdfMeta.material}` : "",
+          pdfMeta.drawingNo ? `Ritningsnr: ${pdfMeta.drawingNo}` : "",
+          `Datum: ${pdfMeta.date || ""}`
+        ].filter(Boolean);
+        metaLeft.slice(0, 4).forEach((line, i) => doc.text(line, drawX0 + 4, drawY0 + 11 + i * 4));
+
+        doc.setFontSize(8.5);
+        doc.text(`Punkter: ${pts3d.length}`, drawX0 + 82, drawY0 + 11);
+        doc.text(`Total längd: ${fmtMm(geometry.totalLen, 1)}`, drawX0 + 82, drawY0 + 15);
+        doc.text(`Radie aktiv: ${geometry.radiusEnabled ? "Ja" : "Nej"}`, drawX0 + 82, drawY0 + 19);
         doc.text(
           `Vy: pitch ${radToDeg(state.view.pitch).toFixed(1)}° / yaw ${radToDeg(state.view.yaw).toFixed(1)}°`,
-          drawX0 + 4,
-          drawY0 + 19
+          drawX0 + 82,
+          drawY0 + 23
         );
-        doc.text(`Radie aktiv: ${geometry.radiusEnabled ? "Ja" : "Nej"}`, drawX0 + 4, drawY0 + 23);
+        if (pdfMeta.note) {
+          doc.setFontSize(7.5);
+          doc.text(`Not: ${pdfMeta.note}`, drawX0 + 4, drawY0 + 27);
+        }
 
         if (geometry.radiusEnabled) {
           doc.setDrawColor(180, 190, 210);
@@ -492,7 +506,7 @@ if (state.showRadiusDims) {
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(11);
-        doc.text("Mått & vinklar", tableX0 + 4, tableY0 + 7);
+        doc.text("Verkstadsunderlag", tableX0 + 4, tableY0 + 7);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
@@ -506,6 +520,14 @@ if (state.showRadiusDims) {
           return true;
         };
 
+        row(`Rubrik: ${pdfMeta.title || "ISO-ritning"}`);
+        if (pdfMeta.project) row(`Projekt: ${pdfMeta.project}`);
+        if (pdfMeta.material) row(`Material: ${pdfMeta.material}`);
+        if (pdfMeta.drawingNo) row(`Ritningsnr: ${pdfMeta.drawingNo}`);
+        row(`Total längd: ${fmtMm(geometry.totalLen, 1)}`);
+        row(`Antal steg: ${state.isoSteps.length}`);
+        row(`Antal böjar: ${geometry.bendCount || 0}`);
+        y += 2;
         row("Steg:");
         for (let i = 0; i < state.isoSteps.length; i++) {
           const step = state.isoSteps[i];
@@ -549,10 +571,14 @@ if (state.showRadiusDims) {
           }
         }
 
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(90, 90, 90);
+        doc.text(`${pdfMeta.appName || "Rörbockning"} v${pdfMeta.version || ""}`, margin, pageH - 4);
+        doc.text(pdfMeta.copyright || "", pageW - margin, pageH - 4, { align: "right" });
+
         const now = new Date();
-        doc.save(
-          `ISO-ritning_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}.pdf`
-        );
+        doc.save(window.AppProject?.filenameForPdf?.(pdfMeta, now) || `ISO-ritning_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}.pdf`);
       } catch (err) {
         console.error("PDF-export fel:", err);
         alert("PDF-export kraschade: " + (err?.message || err));

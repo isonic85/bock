@@ -41,6 +41,12 @@ errorParallelBend: byId("errorParallelBend"),
     
     offsetDetails: byId("offsetDetails"),
     radiusDetails: byId("radiusDetails"),
+    drawingInfoDetails: byId("drawingInfoDetails"),
+    drawingTitleInput: byId("drawingTitle"),
+    drawingProjectInput: byId("drawingProject"),
+    drawingMaterialInput: byId("drawingMaterial"),
+    drawingNoInput: byId("drawingNo"),
+    drawingNoteInput: byId("drawingNote"),
     manualStepsDetails: byId("manualStepsDetails"),
     stepsListDetails: byId("stepsListDetails"),
 
@@ -3855,6 +3861,14 @@ on(dom.points3dInput, "blur", () => {
         angle: dom.angle2Input?.value ?? ""
       },
 
+      drawingMeta: window.AppProject?.snapshotMeta?.() || {
+        title: dom.drawingTitleInput?.value ?? "",
+        project: dom.drawingProjectInput?.value ?? "",
+        material: dom.drawingMaterialInput?.value ?? "",
+        drawingNo: dom.drawingNoInput?.value ?? "",
+        note: dom.drawingNoteInput?.value ?? ""
+      },
+
       iso: {
         stepMm: dom.stepMmInput?.value ?? "",
         points3d: dom.points3dInput?.value ?? "",
@@ -3893,6 +3907,10 @@ zeroBendEnabled: !!dom.zeroBendEnabled?.checked
     if (snapshot.heightAngle) {
       dom.height2Input.value = snapshot.heightAngle.height ?? dom.height2Input.value;
       dom.angle2Input.value = snapshot.heightAngle.angle ?? dom.angle2Input.value;
+    }
+
+    if (window.AppProject?.applyMeta) {
+      window.AppProject.applyMeta(snapshot.drawingMeta || {});
     }
 
     if (snapshot.iso) {
@@ -3968,6 +3986,10 @@ updateUnitLabels();
 
   dom.stepMmInput.value = "100";
   dom.points3dInput.value = "";
+
+  if (window.AppProject?.applyMeta) {
+    window.AppProject.applyMeta({});
+  }
 
   dom.offsetEnabled.checked = false;
   dom.offsetAngleInput.value = "45";
@@ -4247,6 +4269,11 @@ async function saveCurrentDrawing(forceNew = false) {
   dom.angle2Input,
   dom.stepMmInput,
   dom.points3dInput,
+  dom.drawingTitleInput,
+  dom.drawingProjectInput,
+  dom.drawingMaterialInput,
+  dom.drawingNoInput,
+  dom.drawingNoteInput,
   dom.offsetEnabled,
   dom.offsetAngleInput,
   dom.offsetMmInput,
