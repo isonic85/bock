@@ -2821,7 +2821,7 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
       const info = document.createElement("div");
       info.dataset.role = "offsetInfo";
       info.style.cssText = "margin:-2px 0 8px;color:#93c5fd;font-size:12px;line-height:1.35;";
-      info.textContent = `Riktning från drag: ${compLabel}. Appen räknar projektion och L automatiskt.`;
+      info.textContent = `Riktning: ${compLabel}. OBS!! Se indikator till vänster, tex Down > offset S betyder att slaget blir 90,90, står det Down > offset E+S så blir slaget vridet .`;
       card.appendChild(info);
 
       fields.push(addField(`Offset ${compLabel}`, preview.off || preview.step.off, "offsetTotal"));
