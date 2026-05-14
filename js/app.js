@@ -3507,7 +3507,8 @@ on(dom.unitSelect, "change", () => {
 });
 
     on(dom.offsetEnabled, "change", () => {
-      show(dom.offsetPanel, dom.offsetEnabled.checked);
+      show(dom.offsetDetails, false);
+      show(dom.offsetPanel, false);
       show(dom.errorOffset, false);
       syncIsoMobileSections();
     });
@@ -3914,7 +3915,8 @@ state.showRadiusDims = !!dom.radiusDimsEnabled.checked;
 state.showRadius = !!dom.radiusEnabled.checked;
 state.showZeroBend = !!dom.zeroBendEnabled.checked;
 
-    show(dom.offsetPanel, dom.offsetEnabled.checked);
+    show(dom.offsetDetails, false);
+    show(dom.offsetPanel, false);
     show(dom.radiusPanel, dom.radiusEnabled.checked);
     show(dom.zeroBendPanel, dom.zeroBendEnabled.checked);
 
@@ -3981,6 +3983,7 @@ state.showRadiusDims = true;
 state.showRadius = false;
 state.showZeroBend = false;
 
+  show(dom.offsetDetails, false);
   show(dom.offsetPanel, false);
   show(dom.radiusPanel, false);
   show(dom.zeroBendPanel, false);
@@ -4401,21 +4404,24 @@ angleFields.forEach((input) => {
 
 function setDetailsOpen(el, open) {
   if (!el) return;
-  el.open = !!open;
+  if (typeof el.open === "boolean") el.open = !!open;
 }
 
 function syncIsoMobileSections() {
   const isMobile = window.innerWidth <= 520;
 
+  // Offset-inställningarna ska aldrig visas i UI:t.
+  // De finns bara som dolda standardvärden för offset-ritningen.
+  show(dom.offsetDetails, false);
+  show(dom.offsetPanel, false);
+
   if (!isMobile) {
-    setDetailsOpen(dom.offsetDetails, true);
     setDetailsOpen(dom.radiusDetails, true);
     setDetailsOpen(dom.manualStepsDetails, true);
     setDetailsOpen(dom.stepsListDetails, true);
     return;
   }
 
-  setDetailsOpen(dom.offsetDetails, !!dom.offsetEnabled?.checked);
   setDetailsOpen(dom.radiusDetails, !!dom.radiusEnabled?.checked || !!dom.zeroBendEnabled?.checked);
   setDetailsOpen(dom.manualStepsDetails, false);
   setDetailsOpen(dom.stepsListDetails, state.isoSteps.length > 0);
@@ -4452,7 +4458,8 @@ const exportIsoPdf = window.PdfModule.createExportIsoPdf({
     state.isoSteps = parseSteps(dom.points3dInput.value) || [];
     renderStepsList();
     ensureCanvasDpr();
-    show(dom.offsetPanel, dom.offsetEnabled.checked);
+    show(dom.offsetDetails, false);
+    show(dom.offsetPanel, false);
     show(dom.radiusPanel, dom.radiusEnabled.checked);
     show(dom.zeroBendPanel, dom.zeroBendEnabled.checked);
     fitView(false);

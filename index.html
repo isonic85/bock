@@ -264,59 +264,12 @@
             </div>
           </div>
 
-          <details class="iso-section" id="offsetDetails">
-            <summary>Offset-inställningar</summary>
-            <div class="iso-section-body">
-              <div id="offsetPanel" class="hidden">
-                <div class="offset-grid">
-                  <div class="field mb0">
-                    <label for="offsetAngle">Vinkel <span class="unit">(°)</span></label>
-                    <input
-                      id="offsetAngle"
-                      type="text"
-                      inputmode="decimal"
-                      enterkeyhint="done"
-                      autocomplete="off"
-                      value="45"
-                    />
-                    <div class="note">För E/N/S/W: + = upp, − = ner.</div>
-                  </div>
-
-                  <div class="field mb0">
-                    <label for="offsetMm">Offset <span class="unit" data-length-unit>(mm)</span></label>
-                    <input
-                      id="offsetMm"
-                      type="text"
-                      inputmode="decimal"
-                      enterkeyhint="done"
-                      autocomplete="off"
-                      value="100"
-                    />
-                    <div class="note">Katet (förflyttning). Segment blir längre.</div>
-                  </div>
-                </div>
-
-                <div class="field" style="margin-top:8px;">
-                  <label for="offsetCcMm">C.C mått <span class="unit" data-length-unit>(mm)</span></label>
-                  <input
-                    id="offsetCcMm"
-                    type="text"
-                    inputmode="decimal"
-                    enterkeyhint="done"
-                    autocomplete="off"
-                    placeholder="Valfritt"
-                  />
-                  <div class="note">
-                    Om du anger detta justeras föregående raka steg så att C.C-måttet stämmer, Används främst vid 90 graders kick.
-                  </div>
-                </div>
-
-                <div id="errorOffset" class="error">
-                  Vinkel får inte vara 0° eller ±90°. Offset måste vara &gt; 0.
-                </div>
-              </div>
-            </div>
-          </details>
+          <div id="offsetDetails" class="hidden" aria-hidden="true">
+            <input id="offsetAngle" type="hidden" value="45" />
+            <input id="offsetMm" type="hidden" value="100" />
+            <input id="offsetCcMm" type="hidden" value="" />
+            <div id="errorOffset" class="error"></div>
+          </div>
 
           <details class="iso-section" id="radiusDetails">
             <summary>Radie och 0-punkt</summary>
