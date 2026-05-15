@@ -2950,10 +2950,10 @@ function rgbaBlue(alpha) {
     const card = document.createElement("div");
     card.className = "precision-editor-card";
 
-    const title = preview.type === "OFF" ? "Exakt offset" : "Exakt längd";
+    
     const titleEl = document.createElement("div");
     titleEl.className = "precision-editor-title";
-    titleEl.textContent = title;
+    
     card.appendChild(titleEl);
 
     function addField(label, value, key) {
