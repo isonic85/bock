@@ -176,6 +176,7 @@ const DEFAULT_VIEW = Object.freeze({
       zoom: 1,
       panX: 0,
       panY: 0,
+      userAdjusted: false,
       pitch: DEFAULT_VIEW.pitch,
       yaw: DEFAULT_VIEW.yaw,
       pivot: { x: 0, y: 0, z: 0 }
@@ -1718,6 +1719,22 @@ function getRadiusSettings() {
     state.view.pivot = getModelPivot(geometry.points3d);
     const projected = getDisplayCloudProjected(projectIso, geometry);
 
+    // UX: lämna alltid arbetsyta framför senaste punkten så man slipper zooma ut
+    // varje gång man bygger vidare på röret.
+    const ptsForWorkspace = geometry.points3d || [];
+    if (ptsForWorkspace.length >= 2) {
+      const last = projectIso(ptsForWorkspace[ptsForWorkspace.length - 1]);
+      const prev = projectIso(ptsForWorkspace[ptsForWorkspace.length - 2]);
+      const dx = last.x - prev.x;
+      const dy = last.y - prev.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const workspace = Math.max(260, Math.min(900, len * 1.25));
+      projected.push({
+        x: last.x + (dx / len) * workspace,
+        y: last.y + (dy / len) * workspace
+      });
+    }
+
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
@@ -1731,26 +1748,30 @@ function getRadiusSettings() {
 
     const spanX = Math.max(maxX - minX, 1e-6);
     const spanY = Math.max(maxY - minY, 1e-6);
-    const pad = 36;
-    const scale = Math.min((w - 2 * pad) / spanX, (h - 2 * pad) / spanY);
+    const padX = Math.max(56, w * 0.16);
+    const padY = Math.max(52, h * 0.16);
+    const rawScale = Math.min((w - 2 * padX) / spanX, (h - 2 * padY) / spanY);
+    const scale = Math.max(0.02, rawScale * 0.86);
 
     state.view.baseScale = scale;
     state.view.baseCx = w / 2 - ((minX + maxX) / 2) * scale;
     state.view.baseCy = h / 2 - ((minY + maxY) / 2) * scale;
 
-    if (!keepUserZoom) {
-      state.view.zoom = 1;
+    const preserveUserView = keepUserZoom || state.view.userAdjusted;
+    if (!preserveUserView) {
+      state.view.zoom = 0.92;
       state.view.panX = 0;
       state.view.panY = 0;
     }
   }
 
 function resetView() {
+  state.view.userAdjusted = false;
   state.view.pitch = DEFAULT_VIEW.pitch;
   state.view.yaw = DEFAULT_VIEW.yaw;
 
   if (!state.isoSteps.length) {
-    state.view.zoom = 1;
+    state.view.zoom = 0.92;
     state.view.panX = 0;
     state.view.panY = 0;
     state.view.pivot = { x: 0, y: 0, z: 0 };
@@ -1812,20 +1833,20 @@ if (!found) {
     const boxW = tw + 14;
     const boxH = 20;
 
-    ctx.strokeStyle = "rgba(244,114,182,.75)";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(244,114,182,.45)";
+    ctx.lineWidth = 0.8;
     ctx.beginPath();
     ctx.moveTo(mid.x, mid.y);
     ctx.lineTo(labelX, labelY);
     ctx.stroke();
 
     ctx.fillStyle = "rgba(2,6,23,.92)";
-    ctx.strokeStyle = "rgba(244,114,182,.65)";
+    ctx.strokeStyle = "rgba(244,114,182,.42)";
     roundRectPath(ctx, labelX - boxW / 2, labelY - boxH / 2, boxW, boxH, 8);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = "#f8fafc";
+    ctx.fillStyle = "rgba(248,250,252,.82)";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(text, labelX, labelY + 0.5);
@@ -1856,15 +1877,16 @@ placeCanvasDimCAD(
   outwardSign(a, b, centroidCanvas),
   placedLabels,
   {
-    color: "#38bdf8",
-    extColor: "rgba(56,189,248,.55)",
-    textColor: "#38bdf8",
-    offPx: 16 * dimSpread,
+    color: rgbaBlue(0.62),
+    extColor: rgbaBlue(0.28),
+    textColor: rgbaBlue(0.68),
+    offPx: 18 * dimSpread,
     minLenPx: 28,
-    lineW: 1.35,
-    extW: 1,
-    dotR: 2.1,
-    dotFill: "#38bdf8",
+    font: "10.5px system-ui",
+    lineW: 0.95,
+    extW: 0.75,
+    dotR: 1.55,
+    dotFill: rgbaBlue(0.70),
     gapPad: 5
   }
 );
@@ -1893,8 +1915,8 @@ function drawOffsetRiseDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, d
 
   ctx.save();
   ctx.setLineDash([6, 5]);
-  ctx.strokeStyle = "rgba(56,189,248,.85)";
-  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = "rgba(56,189,248,.38)";
+  ctx.lineWidth = 0.9;
   ctx.beginPath();
   ctx.moveTo(a.x, a.y);
   ctx.lineTo(b.x, b.y);
@@ -1909,15 +1931,16 @@ function drawOffsetRiseDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, d
     outwardSign(a, b, centroidCanvas),
     placedLabels,
     {
-      color: "#38bdf8",
-      extColor: "rgba(56,189,248,.45)",
-      textColor: "#38bdf8",
-      offPx: 12 * dimSpread,
+      color: rgbaBlue(0.52),
+      extColor: rgbaBlue(0.24),
+      textColor: rgbaBlue(0.62),
+      offPx: 14 * dimSpread,
       minLenPx: 24,
-      lineW: 1.1,
-      extW: 1,
-      dotR: 1.9,
-      dotFill: "#38bdf8",
+      font: "10px system-ui",
+      lineW: 0.85,
+      extW: 0.7,
+      dotR: 1.35,
+      dotFill: rgbaBlue(0.62),
       gapPad: 5
     }
   );
@@ -1945,8 +1968,8 @@ function drawOffsetProjDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, d
 
   ctx.save();
   ctx.setLineDash([6, 5]);
-  ctx.strokeStyle = "rgba(56,189,248,.65)";
-  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = "rgba(56,189,248,.28)";
+  ctx.lineWidth = 0.8;
   ctx.beginPath();
   ctx.moveTo(a.x, a.y);
   ctx.lineTo(b.x, b.y);
@@ -1961,15 +1984,16 @@ function drawOffsetProjDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, d
     outwardSign(a, b, centroidCanvas),
     placedLabels,
     {
-      color: "#38bdf8",
-      extColor: "rgba(56,189,248,.35)",
-      textColor: "#38bdf8",
+      color: rgbaBlue(0.42),
+      extColor: rgbaBlue(0.20),
+      textColor: rgbaBlue(0.52),
       offPx: 10 * dimSpread,
       minLenPx: 24,
-      lineW: 1.05,
-      extW: 1,
-      dotR: 1.8,
-      dotFill: "#38bdf8",
+      font: "9.5px system-ui",
+      lineW: 0.75,
+      extW: 0.65,
+      dotR: 1.2,
+      dotFill: rgbaBlue(0.52),
       gapPad: 5
     }
   );
@@ -2141,6 +2165,22 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
 
   placed.push(box);
   return box;
+}
+
+function dimFadeForIndex(index, total) {
+  const ageFromEnd = Math.max(0, total - 1 - index);
+  if (ageFromEnd === 0) return { alpha: 1, lineW: 1.55, font: "700 12.5px system-ui", dotR: 2.4 };
+  if (ageFromEnd <= 2) return { alpha: 0.78, lineW: 1.25, font: "12px system-ui", dotR: 2.0 };
+  if (ageFromEnd <= 5) return { alpha: 0.48, lineW: 1.0, font: "11px system-ui", dotR: 1.6 };
+  return { alpha: 0.22, lineW: 0.8, font: "10.5px system-ui", dotR: 1.25 };
+}
+
+function rgbaWhite(alpha) {
+  return `rgba(229,231,235,${alpha})`;
+}
+
+function rgbaBlue(alpha) {
+  return `rgba(56,189,248,${alpha})`;
 }
 
 
@@ -3041,7 +3081,7 @@ function placeArcLabelBox(ctx, text, x, y, placed) {
     if (!ctxIso) return;
 
 if (!state.isoSteps.length) {
-  state.view.zoom = 1;
+  state.view.zoom = 0.92;
   state.view.panX = 0;
   state.view.panY = 0;
   state.view.pivot = { x: 0, y: 0, z: 0 };
@@ -3201,6 +3241,7 @@ const placedLabels = [];
       const b = toCanvas(projectIso(seg.end));
       if (seg.len <= 1e-4 || Math.hypot(b.x - a.x, b.y - a.y) <= 2) continue;
 
+const dimStyle = dimFadeForIndex(seg.index, geometry.segments.length);
 placeCanvasDimCAD(
   ctxIso,
   a,
@@ -3209,16 +3250,16 @@ placeCanvasDimCAD(
   outwardSign(a, b, centroidCanvas),
   placedLabels,
   {
-    color: "#e5e7eb",
-    extColor: "rgba(248,250,252,.65)",
-    offPx: 14 * dimSpread,
+    color: rgbaWhite(dimStyle.alpha),
+    extColor: `rgba(248,250,252,${Math.max(0.12, dimStyle.alpha * 0.45)})`,
+    offPx: (seg.index === geometry.segments.length - 1 ? 18 : 12) * dimSpread,
     minLenPx: 26,
-    font: "12px system-ui",
-    lineW: 1.3,
-    extW: 1.0,
-    dotR: 2.2,
-    dotFill: "#e5e7eb",
-    textColor: "#e5e7eb",
+    font: dimStyle.font,
+    lineW: dimStyle.lineW,
+    extW: Math.max(0.55, dimStyle.lineW * 0.62),
+    dotR: dimStyle.dotR,
+    dotFill: rgbaWhite(Math.max(0.32, dimStyle.alpha)),
+    textColor: rgbaWhite(Math.max(0.45, dimStyle.alpha)),
     gapPad: 5
   }
 );
@@ -3665,6 +3706,7 @@ on(dom.points3dInput, "blur", () => {
       state.view.zoom = newZoom;
       state.view.panX = p.x - state.view.baseCx - wx * kNew;
       state.view.panY = p.y - state.view.baseCy - wy * kNew;
+      state.view.userAdjusted = true;
 
       drawIso();
     }, { passive: false });
@@ -3743,6 +3785,7 @@ on(dom.points3dInput, "blur", () => {
           state.view.pitch = clamp(state.view.pitch, -1.35, 1.35);
         }
 
+        state.view.userAdjusted = true;
         drawIso();
         return;
       }
@@ -3770,6 +3813,7 @@ on(dom.points3dInput, "blur", () => {
         state.view.zoom = newZoom;
         state.view.panX = state.pinchStart.cx - state.view.baseCx - wx * kNew + dxCenter;
         state.view.panY = state.pinchStart.cy - state.view.baseCy - wy * kNew + dyCenter;
+        state.view.userAdjusted = true;
 
         drawIso();
       }
@@ -3887,6 +3931,7 @@ zeroBendEnabled: !!dom.zeroBendEnabled?.checked
         pitch: state.view.pitch,
         yaw: state.view.yaw,
         zoom: state.view.zoom,
+        userAdjusted: state.view.userAdjusted,
         panX: state.view.panX,
         panY: state.view.panY
       }
@@ -3932,7 +3977,8 @@ dom.zeroBendEnabled.checked = !!snapshot.iso.zeroBendEnabled;
     if (snapshot.view) {
       state.view.pitch = Number.isFinite(snapshot.view.pitch) ? snapshot.view.pitch : DEFAULT_VIEW.pitch;
       state.view.yaw = Number.isFinite(snapshot.view.yaw) ? snapshot.view.yaw : DEFAULT_VIEW.yaw;
-      state.view.zoom = Number.isFinite(snapshot.view.zoom) ? snapshot.view.zoom : 1;
+      state.view.zoom = Number.isFinite(snapshot.view.zoom) ? snapshot.view.zoom : 0.92;
+      state.view.userAdjusted = !!snapshot.view.userAdjusted;
       state.view.panX = Number.isFinite(snapshot.view.panX) ? snapshot.view.panX : 0;
       state.view.panY = Number.isFinite(snapshot.view.panY) ? snapshot.view.panY : 0;
     }

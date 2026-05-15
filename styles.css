@@ -59,7 +59,7 @@ body {
 }
 
 .app {
-  width: min(780px, 100%);
+  width: min(980px, 100%);
   margin: 0 auto;
   background: var(--bg-panel);
   border-radius: var(--radius-lg);
@@ -465,8 +465,8 @@ svg {
 #isoCanvas {
   display: block;
   width: 100%;
-  height: clamp(280px, 45vh, 600px);
-  aspect-ratio: 5 / 3;
+  height: clamp(420px, 64vh, 780px);
+  aspect-ratio: 16 / 10;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   background: var(--bg-input);
@@ -553,7 +553,7 @@ svg {
 
 @media (max-width: 520px) {
   .offset-grid { grid-template-columns: 1fr; }
-  #isoCanvas { aspect-ratio: 4 / 3; }
+  #isoCanvas { aspect-ratio: 5 / 4; }
 
   .iso-canvas-card {
     position: static;
@@ -980,7 +980,7 @@ svg {
 
 @media (max-width: 520px) {
   #isoCanvas {
-    height: clamp(300px, 48vh, 420px);
+    height: clamp(430px, 64vh, 620px);
   }
 
   .iso-mobile-status {
@@ -1276,4 +1276,30 @@ body.iso-mode-active.numpad-open .app {
 
 #drawingInfoDetails input::placeholder {
   color: rgba(156, 163, 175, 0.7);
+}
+
+
+/* ISO UX-pass: bigger drawing workspace */
+body.iso-mode-active .app {
+  width: min(1120px, 100%);
+}
+
+body.iso-mode-active #mode-iso3d .diagram-card.iso-canvas-card {
+  padding: 8px;
+}
+
+@media (max-width: 780px) {
+  body.iso-mode-active #isoCanvas {
+    height: clamp(460px, 68vh, 720px);
+  }
+}
+
+@media (max-width: 520px) {
+  body.iso-mode-active #isoCanvas {
+    height: clamp(470px, 70vh, 690px);
+  }
+
+  body.iso-mode-active .diagram-card.iso-canvas-card {
+    padding: 6px;
+  }
 }
