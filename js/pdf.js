@@ -235,30 +235,41 @@ const dirMap = {
   DOWN: { dx: 0, dy: 0, dz: -1 }
 };
 
-const dir = dirMap[beforeOffset.dir];
-if (!dir) return null;
+const travelDir = offsetStep.travelDir || offsetStep.baseDir || beforeOffset.dir;
+const travel = dirMap[travelDir];
+if (!travel) return null;
 
-const baseRunBeforeOffset =
-  dist3(startPoint, offsetStartPoint) + offsetStep.P;
+// C.C/projektionsmåttet ska följa offsetens faktiska koordinater.
+// Annars blir det fel när röret kommer t.ex. UP och offseten fortsätter N/E.
+const projEndPoint = {
+  x: offsetStartPoint.x + (offsetStep.proj?.dx || 0),
+  y: offsetStartPoint.y + (offsetStep.proj?.dy || 0),
+  z: offsetStartPoint.z + (offsetStep.proj?.dz || 0)
+};
 
-let totalLen = baseRunBeforeOffset;
+let totalLen = dist3(startPoint, offsetStartPoint) + offsetStep.P;
+let endPoint = { ...projEndPoint };
 
-// Fortsätter man i samma riktning efter offseten
-if (afterOffset && afterOffset.type === "CARD" && afterOffset.dir === beforeOffset.dir) {
+if (afterOffset && afterOffset.type === "CARD" && afterOffset.dir === travelDir) {
   totalLen += afterOffset.mm;
+  endPoint = {
+    x: projEndPoint.x + travel.dx * afterOffset.mm,
+    y: projEndPoint.y + travel.dy * afterOffset.mm,
+    z: projEndPoint.z + travel.dz * afterOffset.mm
+  };
 }
 
-const endPoint = {
-  x: startPoint.x + dir.dx * totalLen,
-  y: startPoint.y + dir.dy * totalLen,
-  z: startPoint.z + dir.dz * totalLen
-};
+const isStraightTotalDim = beforeOffset.dir === travelDir;
 
 return {
   startIndex,
   startPoint,
+  offsetStartPoint,
   endPoint,
-  totalLen
+  projEndPoint,
+  travelDir,
+  totalLen,
+  isStraightTotalDim
 };
 }
 
@@ -278,6 +289,12 @@ function drawPdfOffsetBaseTotalDim(doc, points3d, stepIndex, toPdf, centroid2, s
   const b = toPdf(projectIso(cc.endPoint));
 
   if (Math.hypot(b.x - a.x, b.y - a.y) <= 1) return;
+
+  if (!cc.isStraightTotalDim) {
+    // Brutet C.C-mått ska inte ritas som extra textruta i PDF.
+    // Endast raka totalmått visas som blå C.C-linje.
+    return;
+  }
 
   drawPdfDimCAD(
     doc,

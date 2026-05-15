@@ -1127,8 +1127,16 @@ function drawCanvasDimCAD(ctx, a, b, text, outward, opts = {}) {
   const rawNx = -uy;
   const rawNy = ux;
 
-  // Snäpp ändlinjerna till närmaste ISO-riktning
-  const isoN = pickClosestIsoDirection(rawNx, rawNy);
+  // Vanliga vita mått får CAD/ISO-snappning, men offsetmått måste följa den
+  // verkliga projicerade 3D-vektorn. Annars kan blå mått hoppa till fel
+  // referensplan när vyn/orienteringen ändras.
+  const forcedNormal = opts.normal2d;
+  const normalLen = forcedNormal ? Math.hypot(forcedNormal.x, forcedNormal.y) : 0;
+  const isoN = opts.noIsoSnap
+    ? { x: rawNx, y: rawNy }
+    : normalLen > 1e-6
+      ? { x: forcedNormal.x / normalLen, y: forcedNormal.y / normalLen }
+      : pickClosestIsoDirection(rawNx, rawNy);
   const nx = isoN.x;
   const ny = isoN.y;
 
@@ -1320,8 +1328,17 @@ function measureCanvasDimLayout(ctx, a, b, text, outward, opts = {}) {
 
   const ux = dx / segL;
   const uy = dy / segL;
-  const nx = -uy;
-  const ny = ux;
+  const rawNx = -uy;
+  const rawNy = ux;
+  const forcedNormal = opts.normal2d;
+  const normalLen = forcedNormal ? Math.hypot(forcedNormal.x, forcedNormal.y) : 0;
+  const isoN = opts.noIsoSnap
+    ? { x: rawNx, y: rawNy }
+    : normalLen > 1e-6
+      ? { x: forcedNormal.x / normalLen, y: forcedNormal.y / normalLen }
+      : pickClosestIsoDirection(rawNx, rawNy);
+  const nx = isoN.x;
+  const ny = isoN.y;
 
   const off = opts.offPx ?? 10;
   const ex = nx * off * outward;
@@ -1855,6 +1872,70 @@ if (!found) {
 function shouldDrawOffsetBaseDim(step) {
   return !!step && step.type === "OFF";
 }
+function drawFloatingCanvasLabel(ctx, text, anchor, placedLabels = [], opts = {}) {
+  if (!ctx || !anchor) return false;
+
+  ctx.save();
+  ctx.font = opts.font ?? "10.5px system-ui";
+  const tw = ctx.measureText(text).width;
+  ctx.restore();
+
+  const boxW = tw + (opts.padX ?? 14);
+  const boxH = opts.boxH ?? 20;
+  const tries = opts.tries || [
+    { dx: 18, dy: -18 },
+    { dx: -18, dy: -18 },
+    { dx: 18, dy: 18 },
+    { dx: -18, dy: 18 },
+    { dx: 0, dy: -32 },
+    { dx: 0, dy: 32 }
+  ];
+
+  let labelX = anchor.x;
+  let labelY = anchor.y;
+  let box = null;
+
+  for (const t of tries) {
+    const candidate = makeBoxFromCenter(anchor.x + t.dx, anchor.y + t.dy, boxW, boxH);
+    if (!collidesAny(candidate, placedLabels, 6)) {
+      labelX = anchor.x + t.dx;
+      labelY = anchor.y + t.dy;
+      box = candidate;
+      break;
+    }
+  }
+
+  if (!box) {
+    box = makeBoxFromCenter(labelX + 18, labelY - 18, boxW, boxH);
+    labelX += 18;
+    labelY -= 18;
+  }
+
+  ctx.save();
+  ctx.strokeStyle = opts.leaderColor ?? rgbaBlue(0.22);
+  ctx.lineWidth = opts.leaderW ?? 0.7;
+  ctx.beginPath();
+  ctx.moveTo(anchor.x, anchor.y);
+  ctx.lineTo(labelX, labelY);
+  ctx.stroke();
+
+  ctx.fillStyle = opts.fill ?? "rgba(2,6,23,.90)";
+  ctx.strokeStyle = opts.stroke ?? rgbaBlue(0.30);
+  roundRectPath(ctx, box.x, box.y, box.w, box.h, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.font = opts.font ?? "10.5px system-ui";
+  ctx.fillStyle = opts.textColor ?? rgbaBlue(0.68);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, labelX, labelY + 0.5);
+  ctx.restore();
+
+  placedLabels.push(box);
+  return true;
+}
+
 function drawOffsetBaseTotalDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, dimSpread, placedLabels = []) {
   if (stepIndex < 0) return;
 
@@ -1869,27 +1950,63 @@ function drawOffsetBaseTotalDim(ctx, points3d, stepIndex, toCanvas, centroidCanv
 
   if (Math.hypot(b.x - a.x, b.y - a.y) <= 2) return;
 
-placeCanvasDimCAD(
-  ctx,
-  a,
-  b,
-  fmtMm(cc.totalLen, 1),
-  outwardSign(a, b, centroidCanvas),
-  placedLabels,
-  {
-    color: rgbaBlue(0.62),
-    extColor: rgbaBlue(0.28),
-    textColor: rgbaBlue(0.68),
-    offPx: 18 * dimSpread,
-    minLenPx: 28,
-    font: "10.5px system-ui",
-    lineW: 0.95,
-    extW: 0.75,
-    dotR: 1.55,
-    dotFill: rgbaBlue(0.70),
-    gapPad: 5
+  // C.C kan bara visas som en rak blå måttlinje när referenssträckan och
+  // offsetens travel-riktning ligger på samma axel. Ex: UP följt av travel N/E
+  // är ett brutet koordinatmått och ska inte ritas som en falsk rak linje.
+  if (!cc.isStraightTotalDim) {
+    // Brutet C.C-mått ska inte visas som ruta på canvas.
+    // Vi behåller beräkningen internt, men visar bara P/offset-måtten
+    // så ritningen inte blir rörig när travelDir bryter från föregående axel.
+    return;
   }
-);
+
+  placeCanvasDimCAD(
+    ctx,
+    a,
+    b,
+    fmtMm(cc.totalLen, 1),
+    outwardSign(a, b, centroidCanvas),
+    placedLabels,
+    {
+      color: rgbaBlue(0.62),
+      extColor: rgbaBlue(0.28),
+      textColor: rgbaBlue(0.68),
+      offPx: 18 * dimSpread,
+      minLenPx: 28,
+      font: "10.5px system-ui",
+      lineW: 0.95,
+      extW: 0.75,
+      dotR: 1.55,
+      dotFill: rgbaBlue(0.70),
+      gapPad: 5
+    }
+  );
+}
+
+function projectedUnitFrom3d(vec3) {
+  const origin = projectIso({ x: 0, y: 0, z: 0 });
+  const p = projectIso({
+    x: vec3?.dx || 0,
+    y: vec3?.dy || 0,
+    z: vec3?.dz || 0
+  });
+  const dx = p.x - origin.x;
+  const dy = p.y - origin.y;
+  const L = Math.hypot(dx, dy) || 1;
+  return { x: dx / L, y: dy / L };
+}
+
+function offsetDimSideFromVectors(step, fallbackSide = 1) {
+  const projU = projectedUnitFrom3d(step?.proj || { dx: 1, dy: 0, dz: 0 });
+  const offU = projectedUnitFrom3d(step?.offv || { dx: 0, dy: 0, dz: 1 });
+
+  // Placera offsetmåttet på den sida som ligger bort från travel/proj-riktningen.
+  // Det gör att blå mått ligger stabilt oavsett kameravinkel och inte byter
+  // referensplan via centroiden.
+  const n = { x: -offU.y, y: offU.x };
+  const dot = n.x * projU.x + n.y * projU.y;
+  if (Math.abs(dot) < 1e-6) return fallbackSide || 1;
+  return dot > 0 ? -1 : 1;
 }
 
 function drawOffsetRiseDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, dimSpread, placedLabels = []) {
@@ -1928,10 +2045,11 @@ function drawOffsetRiseDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, d
     a,
     b,
     fmtMm(step.off, 1),
-    outwardSign(a, b, centroidCanvas),
+    offsetDimSideFromVectors(step, outwardSign(a, b, centroidCanvas)),
     placedLabels,
     {
-      color: rgbaBlue(0.52),
+      noIsoSnap: true,
+      color: rgbaBlue(0.56),
       extColor: rgbaBlue(0.24),
       textColor: rgbaBlue(0.62),
       offPx: 14 * dimSpread,
@@ -1984,6 +2102,7 @@ function drawOffsetProjDim(ctx, points3d, stepIndex, toCanvas, centroidCanvas, d
     outwardSign(a, b, centroidCanvas),
     placedLabels,
     {
+      noIsoSnap: true,
       color: rgbaBlue(0.42),
       extColor: rgbaBlue(0.20),
       textColor: rgbaBlue(0.52),
@@ -3365,30 +3484,45 @@ const offsetStartPoint = points3d[offsetStepIndex];
 
 if (!startPoint || !offsetStartPoint) return null;
 
-const dir = dirMap[beforeOffset.dir];
-if (!dir) return null;
+const travelDir = offsetStep.travelDir || offsetStep.baseDir || beforeOffset.dir;
+const travel = dirMap[travelDir];
+if (!travel) return null;
 
-const baseRunBeforeOffset =
-  dist3(startPoint, offsetStartPoint) + offsetStep.P;
+// C.C/projektionsmåttet måste byggas av offsetens riktiga 3D-koordinater.
+// Tidigare ritades endPoint bara längs raka steget före offseten (beforeOffset.dir).
+// Det fungerade när travelDir == beforeOffset.dir, men blev fel när man t.ex.
+// kom UP och sedan gjorde en offset som fortsatte N eller E.
+const projEndPoint = {
+  x: offsetStartPoint.x + (offsetStep.proj?.dx || 0),
+  y: offsetStartPoint.y + (offsetStep.proj?.dy || 0),
+  z: offsetStartPoint.z + (offsetStep.proj?.dz || 0)
+};
 
-let totalLen = baseRunBeforeOffset;
+let totalLen = dist3(startPoint, offsetStartPoint) + offsetStep.P;
+let endPoint = { ...projEndPoint };
 
-// Fortsätter man i samma riktning efter offseten
-if (afterOffset && afterOffset.type === "CARD" && afterOffset.dir === beforeOffset.dir) {
+// Fortsätter man efter offseten i samma travel-riktning ska C.C-måttet följa
+// den faktiska riktningen efter offseten, inte alltid riktningen före offseten.
+if (afterOffset && afterOffset.type === "CARD" && afterOffset.dir === travelDir) {
   totalLen += afterOffset.mm;
+  endPoint = {
+    x: projEndPoint.x + travel.dx * afterOffset.mm,
+    y: projEndPoint.y + travel.dy * afterOffset.mm,
+    z: projEndPoint.z + travel.dz * afterOffset.mm
+  };
 }
 
-const endPoint = {
-  x: startPoint.x + dir.dx * totalLen,
-  y: startPoint.y + dir.dy * totalLen,
-  z: startPoint.z + dir.dz * totalLen
-};
+const isStraightTotalDim = beforeOffset.dir === travelDir;
 
 return {
   startIndex,
   startPoint,
+  offsetStartPoint,
   endPoint,
-  totalLen
+  projEndPoint,
+  travelDir,
+  totalLen,
+  isStraightTotalDim
 };
 }
 
@@ -3416,8 +3550,10 @@ function getCcAfterOffsetCandidate(nextDir) {
   if (last.type !== "OFF") return null;
   if (beforeLast.type !== "CARD") return null;
 
-  // Bara om man fortsätter i samma riktning som raka steget före offseten
-  if (beforeLast.dir !== nextDir) return null;
+  // Bara om man fortsätter i samma riktning som offsetens travel-riktning.
+  // Vid t.ex. UP före offset men travel N/E får man annars fel C.C-logik.
+  const travelDir = last.travelDir || last.baseDir || beforeLast.dir;
+  if (travelDir !== nextDir) return null;
 
   const points = stepsToPoints(state.isoSteps);
   const offsetStartPoint = points[offsetStepIndex];
