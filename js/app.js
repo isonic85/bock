@@ -2948,28 +2948,17 @@ function rgbaBlue(alpha) {
     backdrop.style.cssText = "position:fixed;inset:0;z-index:1400;pointer-events:none;";
 
     const card = document.createElement("div");
-    card.style.cssText = [
-      "position:fixed",
-      "left:50%",
-      "top:18vh",
-      "transform:translateX(-50%)",
-      "width:min(420px,calc(100vw - 24px))",
-      "padding:12px",
-      "border:1px solid rgba(148,163,184,.35)",
-      "border-radius:16px",
-      "background:rgba(15,23,42,.98)",
-      "box-shadow:0 18px 45px rgba(0,0,0,.45)",
-      "color:#e5e7eb",
-      "pointer-events:auto",
-      "font:13px system-ui"
-    ].join(";");
+    card.className = "precision-editor-card";
 
     const title = preview.type === "OFF" ? "Exakt offset" : "Exakt längd";
-    card.innerHTML = `<div style="font-weight:800;margin-bottom:8px;">${title}</div>`;
+    const titleEl = document.createElement("div");
+    titleEl.className = "precision-editor-title";
+    titleEl.textContent = title;
+    card.appendChild(titleEl);
 
     function addField(label, value, key) {
       const wrap = document.createElement("label");
-      wrap.style.cssText = "display:grid;grid-template-columns:1fr 110px;gap:8px;align-items:center;margin:6px 0;color:#cbd5f5;";
+      wrap.className = "precision-editor-field";
       const span = document.createElement("span");
       span.textContent = label;
       const input = document.createElement("input");
@@ -2978,7 +2967,6 @@ function rgbaBlue(alpha) {
       input.type = "text";
       input.inputMode = "decimal";
       input.value = formatInputNumber(value, 1);
-      input.style.cssText = "width:100%;padding:8px 10px;border:1px solid #4b5563;border-radius:10px;background:#020617;color:#e5e7eb;font-weight:800;text-align:right;";
       wrap.append(span, input);
       card.appendChild(wrap);
       return input;
@@ -2994,8 +2982,8 @@ function rgbaBlue(alpha) {
 
       const info = document.createElement("div");
       info.dataset.role = "offsetInfo";
-      info.style.cssText = "margin:-2px 0 8px;color:#93c5fd;font-size:12px;line-height:1.35;";
-      info.textContent = `Riktning: ${compLabel}. OBS!! Se indikator till vänster, tex Down > offset S betyder att slaget blir 90,90, står det Down > offset E+S så blir slaget vridet .`;
+      info.className = "precision-editor-info";
+      info.textContent = `${preview.travelDir || preview.baseDir} → offset ${compLabel}`;
       card.appendChild(info);
 
       fields.push(addField(`Offset ${compLabel}`, preview.off || preview.step.off, "offsetTotal"));
@@ -3011,10 +2999,10 @@ function rgbaBlue(alpha) {
     }
 
     const actions = document.createElement("div");
-    actions.style.cssText = "display:flex;gap:8px;justify-content:flex-end;margin-top:10px;";
+    actions.className = "precision-editor-actions";
     actions.innerHTML = `
-      <button type="button" data-action="cancel" style="padding:9px 12px;border:1px solid #4b5563;border-radius:10px;background:transparent;color:#e5e7eb;font-weight:800;">Avbryt</button>
-      <button type="button" data-action="ok" style="padding:9px 14px;border:0;border-radius:10px;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;font-weight:900;">OK</button>
+      <button type="button" data-action="cancel" class="precision-editor-btn secondary">Avbryt</button>
+      <button type="button" data-action="ok" class="precision-editor-btn primary">OK</button>
     `;
     card.appendChild(actions);
     backdrop.appendChild(card);
