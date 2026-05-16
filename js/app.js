@@ -1399,22 +1399,14 @@ function placeCanvasDimCAD(ctx, a, b, text, outward, placed, opts = {}) {
 function getAdaptiveIsoGridStep(k, w = 0, h = 0) {
   const pxPerMm = Math.max(Number(k) || 0, 1e-6);
 
-  // Startvyn känns rätt: 50 mm-grid vid tom ritning.
-  // Adaptiv grid får därför bara bli grövre när röret blir långt,
-  // men aldrig ge större visuella rutor än start-gridens storlek.
-  const startGridPx = Math.max(10, (Math.min(w || 900, h || 900) / 900) * 50 * 0.92);
-  const steps = [50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000];
+  // TEST: låst visuell grid.
+  // Tom ny ritning använder 50 mm med baseScale = min(w,h)/900 och zoom = 0.92.
+  // Här räknar vi baklänges så gridrutorna alltid får samma skärmstorlek
+  // som vid ny ritning, även när modellen autozoomar ut/in.
+  const startK = (Math.min(w || 900, h || 900) / 900) * 0.92;
+  const targetGridPx = Math.max(10, 50 * startK);
 
-  let chosen = steps[0];
-  for (const step of steps) {
-    if (step * pxPerMm <= startGridPx) {
-      chosen = step;
-    } else {
-      break;
-    }
-  }
-
-  return chosen;
+  return targetGridPx / pxPerMm;
 }
 
 function drawEmptyIsoGrid(ctx, toCanvas, extent = 2000, step = 50) {
