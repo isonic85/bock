@@ -2698,7 +2698,7 @@ function rgbaBlue(alpha) {
     ctx.strokeStyle = "rgba(249,115,22,.95)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
