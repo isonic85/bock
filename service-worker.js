@@ -1,4 +1,4 @@
-const CACHE_NAME = "rorbockning-offline-v10";
+const CACHE_NAME = "rorbockning-offline-v12";
 const OFFLINE_ASSETS = [
   "./",
   "./index.html",
