@@ -365,6 +365,9 @@ svg {
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
+#clearStepsBtn {
+color: rgb(152, 0, 0);
+}
 
 .iso-btn {
   padding: 4px 8px;
@@ -1076,6 +1079,7 @@ svg {
   box-shadow: none;
   text-align: center;
   font-size: 0.85rem;
+  color: #ffa200;
 }
 
 .iso-chip-btn:hover {
